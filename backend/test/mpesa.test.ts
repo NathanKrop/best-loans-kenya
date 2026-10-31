@@ -20,6 +20,8 @@ const config = {
 
 test("normalizes valid Kenyan mobile formats and rejects invalid numbers", () => {
   assert.equal(normalizeKenyanPhone("0712 345 678"), "254712345678");
+  assert.equal(normalizeKenyanPhone("0112 345 678"), "254112345678");
+  assert.equal(normalizeKenyanPhone("+254 712 345 678"), "254712345678");
   assert.equal(normalizeKenyanPhone("+254 112 345 678"), "254112345678");
   assert.throws(() => normalizeKenyanPhone("12345"), /valid Kenyan mobile/);
 });

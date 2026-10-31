@@ -32,17 +32,26 @@ const profileSchema = z.object({
   monthlyIncomeRange: z.enum(incomeRanges)
 });
 
-export function isAtLeastEighteen(dateOfBirth: Date, now = new Date()): boolean {
+export function ageOn(dateOfBirth: Date, now = new Date()): number {
   let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
   const beforeBirthday =
     now.getUTCMonth() < dateOfBirth.getUTCMonth() ||
     (now.getUTCMonth() === dateOfBirth.getUTCMonth() && now.getUTCDate() < dateOfBirth.getUTCDate());
   if (beforeBirthday) age -= 1;
-  return age >= 18;
+  return age;
+}
+
+export function isAtLeastEighteen(dateOfBirth: Date, now = new Date()): boolean {
+  return ageOn(dateOfBirth, now) >= 18;
+}
+
+export function requestedAmountRangeForAge(age: number): { min: number; max: number } | null {
+  if (!Number.isInteger(age) || age < 18) return null;
+  return age <= 25 ? { min: 1000, max: 30000 } : { min: 30000, max: 200000 };
 }
 
 const applicationSchema = z.object({
-  amount: z.number().int().min(1000).max(50000),
+  amount: z.number().int().min(1000).max(200000),
   periodDays: z.number().int().min(7).max(90),
   purpose: z.string().trim().min(2).max(80)
 });
@@ -133,13 +142,32 @@ export function createLoansRouter(express: typeof import("express")) {
       const input = applicationSchema.parse(request.body);
       const user = await prisma.user.findUnique({
         where: { id: request.userId! },
-        select: { profile: { select: { userId: true } } }
+        select: { profile: { select: { dateOfBirth: true } } }
       });
       if (!user?.profile) {
         response.status(403).json({
           error: {
             code: "APPLICATION_NOT_READY",
             message: "Complete your profile before applying."
+          }
+        });
+        return;
+      }
+      const age = ageOn(user.profile.dateOfBirth);
+      const amountRange = requestedAmountRangeForAge(age);
+      if (!amountRange) {
+        response.status(403).json({
+          error: { code: "AGE_REQUIREMENT_NOT_MET", message: "You must be at least 18 years old to apply." }
+        });
+        return;
+      }
+      if (input.amount < amountRange.min || input.amount > amountRange.max) {
+        response.status(422).json({
+          error: {
+            code: "AMOUNT_OUT_OF_RANGE",
+            message: age <= 25
+              ? "Applicants aged 18 to 25 may request between KES 1,000 and KES 30,000."
+              : "Applicants over 25 may request between KES 30,000 and KES 200,000."
           }
         });
         return;

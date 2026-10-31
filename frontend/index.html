@@ -651,7 +651,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
 <script src="../shared/demo-store.js"></script>
 <script>
 "use strict";
-const S={user:null,verified:false,profile:null,apps:[],dashboardError:null,profileEditing:false,notice:null};
+const S={user:null,verified:false,profile:null,apps:[],assurance:null,assuranceComplete:false,dashboardError:null,profileEditing:false,notice:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const KES=n=>"KES "+Math.round(n).toLocaleString("en-KE");
@@ -704,13 +704,14 @@ async function restoreSession(){
     if(error.status!==401)console.error("Could not restore the signed-in session.");
   }
 }
-const okPhone=p=>/^(07|01)\d{8}$/.test(p.replace(/\s/g,""));
+const normalizePhone=p=>window.BestLoansStore.normalizeKenyanPhone(p);
+const displayPhone=p=>{const normalized=normalizePhone(p);return normalized?`+${normalized}`:p};
 function sc(id){const t=()=>{const e=document.getElementById(id);e&&e.scrollIntoView({behavior:"smooth"})};
   if(location.hash&&location.hash!=="#/"){location.hash="#/";setTimeout(t,60)}else t()}
 
 const FAQ=[["Do I need to pay to join?","No registration payment is required to create an account or submit a loan application."],
-["Who can apply?","Kenyan residents aged 18 or older with a valid national ID and an active M-Pesa number."],
-["How much can I borrow?","You can submit a request within the range shown. The amount requested is not an approval or a promise that funds will be provided."],
+["Who can apply?","Kenyan residents aged 18 or older with a valid national ID or passport and a Kenyan phone number."],
+["How much can I borrow?","Eligible applicants aged 18 to 25 may request KES 1,000 to KES 30,000. Applicants over 25 may request KES 30,000 to KES 200,000. These are request limits only, not an offer or approval."],
 ["What will my loan cost?","Interest, fees and repayment terms have not been confirmed in this preview. Do not accept a loan without first receiving and reviewing its complete written terms."],
 ["Is my data safe?","In API mode, national ID details are encrypted by the backend and only the last three digits are shown in your profile. Demo mode uses mock data in your browser. The Privacy Policy and verified company contact details must be published before launch."]];
 
@@ -728,19 +729,20 @@ const home=()=>`
 <div class="card calc"><h3>Plan a request</h3>
 <p>Explore the amount and period you may request.</p>
 <div class="row"><label for="amt" class="range-label">Requested amount</label><span class="range-value" id="oa"></span></div>
-<input id="amt" type="range" min="1000" max="50000" step="500" value="10000">
+<input id="amt" type="range" min="1000" max="200000" step="1000" value="10000">
 <div class="row" style="margin-top:12px"><label for="day" class="range-label">Requested period</label><b id="od" class="stat-pill"></b></div>
 <input id="day" type="range" min="7" max="90" step="1" value="30">
 <div class="sum"><div><span>Amount requested</span><b id="oa2"></b></div><div><span>Period requested</span><b id="od2"></b></div></div>
+<p class="form-hint">Age-based request limits apply after you complete your profile.</p>
 <p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. Interest, fees, total repayment and eligibility have not been confirmed. Review written terms before accepting any offer.</p></div></div></div>
 
-<section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check your application status.</p></div><div class="grid g4">
-${[["Create your account","Register with your name, phone number and a secure password."],["Verify your phone","Enter the one-time code sent to your phone."],["Complete your profile","Provide your ID, date of birth, county and income range."],["Submit an application","Choose an amount and period, then track the request."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
+<section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check its status.</p></div><div class="grid g4">
+${[["Create your account","Register with your name, Kenyan phone number and a secure password."],["Verify your phone","Enter the one-time code sent to your phone."],["Add assurance details","Provide your county, address, guarantor and demo identity details."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
 
 <section><div class="w grid g2"><div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
 <h2>What you need</h2>
-<ul class="tick"><li>Kenyan national ID</li><li>You are 18 or older</li><li>A Kenyan phone number</li><li>A phone that can receive SMS codes</li></ul></div>
+<ul class="tick"><li>Kenyan national ID or passport</li><li>You are 18 or older</li><li>A Kenyan phone number</li><li>A phone that can receive SMS codes</li></ul></div>
 <div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
 <h2>Borrow responsibly</h2><p style="color:var(--m)">Only borrow what you can repay on time. Compare the total repayable amount, not just the monthly figure, before you accept an offer.</p></div></div></section>
@@ -756,20 +758,20 @@ function homeM(){
   a.oninput=d.oninput=u;u();
 }
 
-const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of 2</span><h1 style="font-size:2rem">Create your account</h1>
+const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Create your account</h1>
 <p style="color:var(--m)">${demoMode?"Demo mode: this does not create a real account.":"Verify your phone to finish creating your account."}</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div></div>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
 <form id="f" novalidate><label for="nm">Full name</label><input id="nm" autocomplete="name" maxlength="100" required>
-<label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678" autocomplete="tel" maxlength="16" required><small class="form-hint">Use a Kenyan number starting with 07 or 01.</small>
+<label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">Use 07…, 01… or the international +254 format.</small>
 <label for="pw">Password (${demoMode?"6+":"10+"} characters)</label><input id="pw" type="password" autocomplete="new-password" minlength="${demoMode?6:10}" maxlength="128" required><small class="form-hint">Use at least ${demoMode?"6":"10"} characters. Don't reuse another password.</small>
 <label class="check"><input id="consent" type="checkbox"><span>I consent to using my information to create and manage my account and application.</span></label>
 <div class="err" id="e" role="alert"></div><button class="btn full">Continue</button></form>
 <p class="note center mt">Already registered? <a href="#/login">Log in</a></p></div></div>`;
 function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
-  const n=$("#nm").value.trim(),p=$("#ph").value.replace(/\s/g,""),w=$("#pw").value;
+  const n=$("#nm").value.trim(),phoneInput=$("#ph").value,p=normalizePhone(phoneInput),w=$("#pw").value;
   const er=m=>{$("#e").textContent=m};
   if(n.length<3)return er("Enter your full name.");
-  if(!okPhone(p))return er("Enter a valid phone number starting with 07 or 01, for example 0712345678.");
+  if(!p)return er("Enter a valid Kenyan number, such as 0712345678 or +254712345678.");
   if(w.length<(demoMode?6:10))return er("Choose a password with at least "+(demoMode?"6":"10")+" characters.");
   if(!$("#consent").checked)return er("Please provide consent to use your information for your account and application.");
   if(!demoMode){
@@ -784,10 +786,10 @@ function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
   S.user={id:user.id,name:user.name,phone:user.phone};window.BestLoansStore.saveUser(user);location.hash="#/otp"}}
 
 const login=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Welcome back</span><h1 style="font-size:2rem">Log in</h1><p style="color:var(--m)">${demoMode?"Demo mode: any valid phone number and password of 6+ characters works.":"Sign in with your verified phone number and password."}</p>
-<form id="f" novalidate><label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="16"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" maxlength="128">
+<form id="f" novalidate><label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" maxlength="128">
 <div class="err" id="e" role="alert"></div><button class="btn full">Log in</button></form></div></div>`;
-function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const p=$("#ph").value.replace(/\s/g,"");
-  if(!okPhone(p)||!$("#pw").value.length)return $("#e").textContent="Check your phone number and password.";
+function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const p=normalizePhone($("#ph").value);
+  if(!p||!$("#pw").value.length)return $("#e").textContent="Check your phone number and password.";
   if(!demoMode){
     const button=$("#f button");button.disabled=true;button.textContent="Signing in…";
     try{
@@ -798,16 +800,16 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const p=$("#ph")
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Log in"}
     return;
   }
-  const saved=window.BestLoansStore.getUsers().find(user=>user.phone===p);
+  const saved=window.BestLoansStore.getUsers().find(user=>normalizePhone(user.phone)===p);
   const user=saved||{id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Member",phone:p,county:"?",created:Date.now(),status:"ACTIVE"};
   if(!saved)window.BestLoansStore.saveUser(user);
-  S.user={id:user.id,name:user.name,phone:user.phone};S.verified=true;S.profile=user.profile||null;
+  S.user={id:user.id,name:user.name,phone:p};S.verified=true;S.profile=user.profile||null;S.assuranceComplete=Boolean(user.profile);S.assurance=S.assuranceComplete?{county:user.profile.county}:null;
   S.apps=window.BestLoansStore.getApplications().filter(application=>application.uid===user.id).map(application=>({amt:application.amt,days:application.days,purpose:application.purpose,status:application.st}));
   location.hash="#/dash"}}
 
-const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of 2</span><h1 style="font-size:2rem">Verify your phone</h1>
-<p style="color:var(--m)">Step 2 of 3. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to your phone."} ${esc(S.user?S.user.phone:"your phone")}.</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div></div>
+const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Verify your phone</h1>
+<p style="color:var(--m)">Step 2 of ${demoMode?"3":"2"}. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to your phone."} ${esc(S.user?displayPhone(S.user.phone):"your phone")}.</p>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
 <form id="f" novalidate><label for="c">6-digit verification code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
 <div class="err" id="e" role="alert"></div><button class="btn full">Verify and continue</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code</button></form></div></div>`;
 function otpM(){
@@ -834,25 +836,72 @@ function otpM(){
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Verify and continue"}
     return;
   }
-  S.verified=true;location.hash="#/dash"}}
+  S.verified=true;location.hash="#/assurance"}}
 
 function completion(){return 50+(S.profile?50:0)}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];
+const assurance=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Assurance</h1>
+<p style="color:var(--m)">Add your address and guarantor, then select identity files for this demo.</p>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item done"><span>3</span>Assurance</div></div>
+<div class="disclosure" role="note"><b>Demo only:</b> assurance details are not saved. Selected files are not uploaded or retained, and no identity check or loan approval is performed.</div>
+<form id="af" novalidate><label for="ac">County</label><select id="ac" required>${counties.map(county=>`<option>${esc(county)}</option>`).join("")}</select>
+<label for="address">Street address</label><input id="address" autocomplete="street-address" maxlength="200" required>
+<label for="guarantor">Guarantor full name</label><input id="guarantor" autocomplete="name" maxlength="100" required>
+<label for="guarantorPhone">Guarantor phone number</label><input id="guarantorPhone" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20" required><small class="form-hint">Use 07…, 01… or the international +254 format.</small>
+<h2 style="font-size:1.2rem;margin-top:24px">Verify Identity</h2>
+<label for="documentType">Choose one identity document</label><select id="documentType"><option value="national-id">National ID</option><option value="passport">Passport</option></select>
+<label for="documentFront">Document front</label><input id="documentFront" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">JPEG, PNG, WebP or PDF; maximum 5 MB.</small>
+<label for="documentBack">Document back</label><input id="documentBack" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">For passports, select the page with your photo and details as the front and the reverse as the back.</small>
+<label for="selfie">Selfie</label><input id="selfie" type="file" accept="image/jpeg,image/png,image/webp" capture="user" required><small class="form-hint">Image only; maximum 5 MB. This demo does not compare the selfie with your document.</small>
+<div class="err" id="ae" role="alert"></div><button class="btn full">Continue to dashboard</button></form></div></div>`;
+function assuranceM(){
+  $("#af").onsubmit=e=>{e.preventDefault();
+    const name=$("#guarantor").value.trim(),address=$("#address").value.trim(),phone=normalizePhone($("#guarantorPhone").value);
+    if(address.length<3)return $("#ae").textContent="Enter your street address.";
+    if(name.length<3)return $("#ae").textContent="Enter your guarantor's full name.";
+    if(!phone)return $("#ae").textContent="Enter a valid Kenyan guarantor number, such as 0712345678 or +254712345678.";
+    for(const [id,label,allowPdf] of [["documentFront","document front",true],["documentBack","document back",true],["selfie","selfie",false]]){
+      const file=$(`#${id}`).files[0];
+      const allowedTypes=allowPdf?["image/jpeg","image/png","image/webp","application/pdf"]:["image/jpeg","image/png","image/webp"];
+      if(!file)return $("#ae").textContent=`Select your ${label}.`;
+      if(!allowedTypes.includes(file.type))return $("#ae").textContent=`Choose a supported file for your ${label}.`;
+      if(file.size>5*1024*1024)return $("#ae").textContent=`Your ${label} must be 5 MB or smaller.`;
+    }
+    S.assurance={county:$("#ac").value,address,guarantorName:name,guarantorPhone:phone,documentType:$("#documentType").value,identityStatus:"NOT_VERIFIED"};
+    S.assuranceComplete=true;
+    S.notice="Assurance demo complete. Identity files were not uploaded, saved, or verified.";
+    location.hash="#/dash";
+  };
+}
+function ageOnDate(dateOfBirth){
+  if(!dateOfBirth)return null;
+  const birth=new Date(`${dateOfBirth}T00:00:00.000Z`);
+  if(!Number.isFinite(birth.getTime())||birth.toISOString().slice(0,10)!==dateOfBirth)return null;
+  let age=new Date().getUTCFullYear()-birth.getUTCFullYear();
+  if(new Date().getUTCMonth()<birth.getUTCMonth()||(new Date().getUTCMonth()===birth.getUTCMonth()&&new Date().getUTCDate()<birth.getUTCDate()))age--;
+  return age;
+}
+function amountRangeForDateOfBirth(dateOfBirth){
+  const age=ageOnDate(dateOfBirth);
+  if(age===null||age<18)return null;
+  return age<=25?{min:1000,max:30000}:{min:30000,max:200000};
+}
 const dash=()=>{
   const p=completion();
+  const amountRange=S.profile?amountRangeForDateOfBirth(S.profile.dateOfBirth):null;
   const selected=(actual,value)=>actual===value?"selected":"";
   const applications=S.apps.length?`<div class="application-list">${S.apps.map(a=>`<article class="application-item"><div class="row"><b>${KES(a.amt)} requested</b><span class="badge ${a.status==="APPROVED"?"ok":a.status==="REJECTED"?"bad":""}">${esc(a.status.toLowerCase())}</span></div><div class="row"><span>${a.days} days · ${esc(a.purpose)}</span><span>${a.createdAt?new Date(a.createdAt).toLocaleDateString("en-KE"):"Recently submitted"}</span></div></article>`).join("")}</div>`:`<p style="color:var(--m);margin:0">You have no applications yet. Complete your profile to submit a request.</p>`;
-  return `<div class="w" style="padding-top:28px;padding-bottom:40px"><span class="eyebrow">Your account</span><h1 style="font-size:2rem">Hello, ${esc(S.user.name.split(" ")[0])}</h1><p>Manage your profile and keep track of your requests.</p>${S.dashboardError?`<p class="err" role="alert">${esc(S.dashboardError)}</p>`:""}${S.notice?`<div class="disclosure account-notice" role="status">${esc(S.notice)}</div>`:""}
+  return `<div class="w" style="padding-top:28px;padding-bottom:40px"><span class="eyebrow">Your account</span><h1 style="font-size:2rem">Hello, ${esc(S.user.name.split(" ")[0])}</h1><p>Manage your profile and keep track of your requests.</p>${demoMode?`<div class="disclosure account-notice"><b>Identity status: Not verified.</b> Assurance details are not saved. This demo does not upload documents, compare selfies, or approve applications.</div>`:""}${S.dashboardError?`<p class="err" role="alert">${esc(S.dashboardError)}</p>`:""}${S.notice?`<div class="disclosure account-notice" role="status">${esc(S.notice)}</div>`:""}
 <div class="card"><div class="row"><b>Application readiness</b><span class="stat-pill">${p}%</span></div><div class="bar mt" role="progressbar" aria-label="Application readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><i style="width:${p}%"></i></div>
 <p class="note" style="margin-top:12px">${S.profile?"Your profile is saved. You can submit an application request.":"Complete your profile to submit an application request."}</p></div>
 <div class="grid g2 dashboard-grid mt">
-<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile&&!S.profileEditing?`<p style="color:var(--m);margin:0">ID ending ${esc(S.profile.id.slice(-3))}, ${esc(S.profile.county)}, ${esc(S.profile.income)}.</p><button class="btn secondary full mt" id="editProfile" type="button">Update profile details</button><small class="form-hint">For your privacy, enter your full ID again when updating your profile.</small>`:
-`<form id="pf" novalidate><label for="id">National ID number</label><input id="id" inputmode="numeric" pattern="[0-9]{7,8}" maxlength="8" autocomplete="off" required><small class="form-hint">${demoMode?"Demo mode stores only the masked final three digits in your browser.":"Your ID is encrypted when saved; the full number is not shown in your profile."}</small>
+<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile&&!S.profileEditing?`<p style="color:var(--m);margin:0">${demoMode?"Profile saved":`ID ending ${esc(S.profile.id.slice(-3))}`}, ${esc(S.profile.county)}, ${esc(S.profile.income)}.</p><button class="btn secondary full mt" id="editProfile" type="button">Update profile details</button>${demoMode?"":`<small class="form-hint">For your privacy, enter your full ID again when updating your profile.</small>`}`:
+`<form id="pf" novalidate>${demoMode?`<p class="note">Identity files are a local-only demo selection and are not verified. Do not enter real identity information.</p>`:`<label for="id">National ID number</label><input id="id" inputmode="numeric" pattern="[0-9]{7,8}" maxlength="8" autocomplete="off" required><small class="form-hint">Your ID is encrypted when saved; the full number is not shown in your profile.</small>`}
 <label for="dob">Date of birth</label><input id="dob" type="date" autocomplete="bday" value="${esc(S.profile?.dateOfBirth||"")}" required>
-<label for="co">County</label><select id="co">${counties.map(c=>`<option ${selected(S.profile?.county,c)}>${esc(c)}</option>`).join("")}</select>
+${demoMode?`<p class="form-hint">County: ${esc(S.assurance?.county||S.profile?.county||"Not provided")}</p>`:`<label for="co">County</label><select id="co">${counties.map(c=>`<option ${selected(S.profile?.county,c)}>${esc(c)}</option>`).join("")}</select>`}
 <label for="in">Monthly income range</label><select id="in">${["Below KES 15,000","KES 15,000 to 40,000","KES 40,000 to 100,000","Above KES 100,000"].map(c=>`<option ${selected(S.profile?.income,c)}>${esc(c)}</option>`).join("")}</select>
 <div class="err" id="e1" role="alert"></div><button class="btn full">${S.profile?"Save changes":"Save profile"}</button>${S.profile?`<button class="btn secondary full mt" id="cancelEdit" type="button">Cancel</button>`:""}</form>`}</div>
-<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div><h3>Apply for a loan</h3>${S.profile?`<p class="note">An application is a request, not an offer or approval. No interest or total repayment figure is available in this preview.</p><form id="lf" novalidate><label for="la">Amount requested</label><input id="la" type="number" min="1000" max="50000" step="500" value="5000" inputmode="numeric" required><small class="form-hint">KES 1,000 to KES 50,000</small>
+<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div><h3>Apply for a loan</h3>${S.profile?`<p class="note">An application is a request, not an offer or approval. No interest or total repayment figure is available in this preview.</p>${amountRange?`<p class="form-hint">${ageOnDate(S.profile.dateOfBirth)<=25?"Applicants aged 18 to 25 may request KES 1,000 to KES 30,000.":"Applicants over 25 may request KES 30,000 to KES 200,000."}</p>`:`<p class="err" role="alert">You must be at least 18 years old to submit an application.</p>`}<form id="lf" novalidate><label for="la">Amount requested</label><input id="la" type="number" min="${amountRange?.min||1000}" max="${amountRange?.max||200000}" step="500" value="${amountRange?.min||1000}" inputmode="numeric" ${amountRange?"":"disabled"} required><small class="form-hint">${amountRange?`KES ${amountRange.min.toLocaleString("en-KE")} to KES ${amountRange.max.toLocaleString("en-KE")}`:"Complete a valid date of birth first."}</small>
 <label for="ld">Requested period</label><input id="ld" type="number" min="7" max="90" value="30" inputmode="numeric" required><small class="form-hint">7 to 90 days</small>
 <label for="lp">Purpose</label><select id="lp"><option>Business</option><option>School fees</option><option>Emergency</option><option>Rent</option><option>Other</option></select>
 <div class="err" id="e2" role="alert"></div><button class="btn full">Submit application</button></form>`:`<p style="color:var(--m);margin:0">Save your profile first to unlock application requests.</p>`}</div></div>
@@ -863,8 +912,8 @@ function dashM(){
   if(editProfile)editProfile.onclick=()=>{S.profileEditing=true;go()};
   const cancelEdit=$("#cancelEdit");
   if(cancelEdit)cancelEdit.onclick=()=>{S.profileEditing=false;go()};
-  const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();const id=$("#id").value.trim(),dob=$("#dob").value;
-    if(!/^\d{7,8}$/.test(id))return $("#e1").textContent="Enter your 7 or 8 digit national ID number.";
+  const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();const id=$("#id")?.value.trim()||"",dob=$("#dob").value;
+    if(!demoMode&&!/^\d{7,8}$/.test(id))return $("#e1").textContent="Enter your 7 or 8 digit national ID number.";
     if(!dob)return $("#e1").textContent="Enter your date of birth.";
     const birthDate=new Date(`${dob}T00:00:00.000Z`),today=new Date();
     let age=today.getUTCFullYear()-birthDate.getUTCFullYear();
@@ -872,16 +921,21 @@ function dashM(){
     if(!Number.isFinite(birthDate.getTime())||age<18)return $("#e1").textContent="You must be at least 18 years old to submit an application.";
     if(!demoMode){
       const button=pf.querySelector("button");button.disabled=true;button.textContent="Saving profile…";
-      api("/profile/me",{method:"PUT",body:JSON.stringify({nationalId:id,dateOfBirth:dob,county:$("#co").value,monthlyIncomeRange:$("#in").value})})
+      const county=$("#co").value;
+      api("/profile/me",{method:"PUT",body:JSON.stringify({nationalId:id,dateOfBirth:dob,county,monthlyIncomeRange:$("#in").value})})
         .then(profile=>{S.profile={id:"***"+profile.nationalIdLast3,county:profile.county,income:profile.monthlyIncomeRange,dateOfBirth:dob};S.profileEditing=false;S.dashboardError=null;S.notice="Your profile details have been saved.";go()})
         .catch(error=>{$("#e1").textContent=error.message;button.disabled=false;button.textContent="Save profile"});
       return;
     }
-    S.profile={id:"***"+id.slice(-3),county:$("#co").value,income:$("#in").value,dateOfBirth:dob};S.profileEditing=false;S.notice="Your profile details have been saved.";
+    const county=S.assurance?.county||S.profile?.county;
+    if(!county)return $("#e1").textContent="Complete your assurance details first.";
+    S.profile={id:"***",county,income:$("#in").value,dateOfBirth:dob};S.profileEditing=false;S.notice="Your profile details have been saved.";
     const user=window.BestLoansStore.getUsers().find(item=>item.id===S.user.id);
     window.BestLoansStore.saveUser({...user,profile:S.profile});go()};
   const lf=$("#lf");if(lf)lf.onsubmit=e=>{e.preventDefault();const a=+$("#la").value,d=+$("#ld").value;
-    if(!Number.isInteger(a)||a<1000||a>50000)return $("#e2").textContent="Enter a whole amount between KES 1,000 and KES 50,000.";
+    const amountRange=S.profile?amountRangeForDateOfBirth(S.profile.dateOfBirth):null;
+    if(!amountRange)return $("#e2").textContent="You must be at least 18 years old to submit an application.";
+    if(!Number.isInteger(a)||a<amountRange.min||a>amountRange.max)return $("#e2").textContent=`Enter a whole amount between KES ${amountRange.min.toLocaleString("en-KE")} and KES ${amountRange.max.toLocaleString("en-KE")}.`;
     if(!Number.isInteger(d)||d<7||d>90)return $("#e2").textContent="Enter a whole period between 7 and 90 days.";
     if(!demoMode){
       const button=lf.querySelector("button");button.disabled=true;button.textContent="Submitting…";
@@ -894,12 +948,15 @@ function dashM(){
     window.BestLoansStore.saveApplication(application);S.apps.unshift({id:application.id,amt:a,days:d,purpose:application.purpose,status:application.st,createdAt:new Date(application.t).toISOString()});S.notice="Your application request was submitted. It is not a loan offer or approval.";go()};
 }
 
-const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/dash":[dash,dashM]};
+const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM]};
 function go(){
   const p=location.hash.slice(1)||"/",r=R[p]||R["/"];
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
+  if(p==="/dash"&&demoMode&&S.user&&!S.verified){location.hash="#/otp";return}
+  if(p==="/assurance"&&(!demoMode||!S.user||!S.verified)){location.hash=!S.user?"#/signup":S.verified?"#/dash":"#/otp";return}
+  if(p==="/dash"&&demoMode&&S.user&&!S.assuranceComplete){location.hash="#/assurance";return}
   if(p==="/otp"&&!S.user){location.hash="#/signup";return}
-  if(p==="/otp"&&S.verified){location.hash="#/dash";return}
+  if(p==="/otp"&&S.verified){location.hash=demoMode&&!S.assuranceComplete?"#/assurance":"#/dash";return}
   document.body.classList.toggle("dashboard-mode",p==="/dash");
   $("#app").innerHTML=r[0]();r[1]&&r[1]();
   if(demoMode)$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><div class="demo-notice" role="status"><b>Demo only:</b> accounts, verification and loan applications are simulated.</div></div>`);
@@ -908,7 +965,7 @@ function go(){
   if(logoutButton)logoutButton.onclick=async()=>{
     try{if(!demoMode)await api("/auth/logout",{method:"POST"})}
     catch(error){$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><p class="err" role="alert">${esc(error.message)}</p></div>`);return}
-    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.dashboardError=null;S.profileEditing=false;S.notice=null;
+    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.assurance=null;S.assuranceComplete=false;S.dashboardError=null;S.profileEditing=false;S.notice=null;
     location.hash="#/";go();
   };
   if(!(p==="/dash"&&document.activeElement&&document.activeElement.id))window.scrollTo(0,0);

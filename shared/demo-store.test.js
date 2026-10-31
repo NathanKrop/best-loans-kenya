@@ -55,3 +55,13 @@ test("subscribers receive updates from another page", () => {
 
   assert.equal(observedUsers, 0);
 });
+
+test("normalizes Kenyan mobile numbers in local and international formats", () => {
+  const { store } = loadStore(createStorage());
+
+  assert.equal(store.normalizeKenyanPhone("0712 345 678"), "254712345678");
+  assert.equal(store.normalizeKenyanPhone("0112-345-678"), "254112345678");
+  assert.equal(store.normalizeKenyanPhone("+254 712 345 678"), "254712345678");
+  assert.equal(store.normalizeKenyanPhone("+254 112 345 678"), "254112345678");
+  assert.equal(store.normalizeKenyanPhone("12345"), null);
+});

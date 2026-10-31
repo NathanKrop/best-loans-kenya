@@ -16,7 +16,9 @@ A Kenyan loan application prototype with account registration, phone verificatio
 3. From the project root, run `python -m http.server 8000`.
 4. Open `http://localhost:8000/frontend/` for the API-backed flow, `http://localhost:8000/frontend/?demo=1` for mock mode, or `http://localhost:8000/admin/` for the admin demo.
 
-The API defaults to `http://localhost:3000/api`. Configure SMS delivery through Africa's Talking, or set `DEV_OTP_CODE` for local development; the bypass is disabled in production. The demo OTP accepts any six digits. Demo accounts and loan applications are simulated.
+The API defaults to `http://localhost:3000/api`. Configure SMS delivery through Africa's Talking, or set `DEV_OTP_CODE` for local development; the bypass is disabled in production. The demo OTP accepts any six digits. Demo accounts and loan applications are simulated. The demo assurance step accepts local file selections only: assurance details are not saved; identity images are not uploaded, retained, or verified; and selecting files never approves an account or loan. Do not enter real personal information.
+
+Loan request limits are age-based: applicants aged 18–25 may request KES 1,000–30,000, while applicants over 25 may request KES 30,000–200,000. These limits validate request amounts only; they do not represent eligibility decisions, offers, or approvals.
 
 ## Deploy the static demo to Vercel
 

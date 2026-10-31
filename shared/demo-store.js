@@ -4,6 +4,15 @@
   const storageKey = "best-loans-demo-v1";
   const listeners = new Set();
 
+  function normalizeKenyanPhone(phone) {
+    const compact = String(phone).replace(/[\s-]/g, "");
+    const international = compact.replace(/^\+/, "");
+    const normalized = /^0(?:7|1)\d{8}$/.test(international)
+      ? `254${international.slice(1)}`
+      : international;
+    return /^254(?:7|1)\d{8}$/.test(normalized) ? normalized : null;
+  }
+
   function getSnapshot() {
     try {
       const stored = window.localStorage.getItem(storageKey);
@@ -42,6 +51,7 @@
 
   window.BestLoansStore = Object.freeze({
     storageKey,
+    normalizeKenyanPhone,
     getSnapshot,
     getUsers: () => getSnapshot().users,
     getApplications: () => getSnapshot().applications,

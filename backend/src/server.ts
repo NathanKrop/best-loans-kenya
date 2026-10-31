@@ -18,7 +18,7 @@ import {
   xXssProtection
 } from "helmet";
 import { ZodError } from "zod";
-import { createAuthRouter, SmsProviderError } from "./auth.js";
+import { createAuthRouter, EmailProviderError } from "./auth.js";
 import { prisma } from "./db.js";
 import { InputError } from "./lib/mpesa.js";
 import { createLoansRouter } from "./loans.js";
@@ -69,12 +69,12 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
     response.status(400).json({ error: { code: "INVALID_INPUT", message: error.message } });
     return;
   }
-  if (error instanceof SmsProviderError) {
-    response.status(502).json({ error: { code: "SMS_PROVIDER_ERROR", message: error.message } });
+  if (error instanceof EmailProviderError) {
+    response.status(502).json({ error: { code: "EMAIL_PROVIDER_ERROR", message: error.message } });
     return;
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    response.status(409).json({ error: { code: "ALREADY_EXISTS", message: "An account with that phone number already exists." } });
+    response.status(409).json({ error: { code: "ALREADY_EXISTS", message: "An account with that email address or phone number already exists." } });
     return;
   }
   console.error("API request failed.");

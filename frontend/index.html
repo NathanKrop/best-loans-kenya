@@ -674,7 +674,7 @@ async function api(path,options={}){
   return result.data;
 }
 function setCurrentUser(user){
-  S.user={id:user.id,name:user.fullName,phone:user.phone};
+  S.user={id:user.id,name:user.fullName,email:user.email,phone:user.phone};
   S.verified=true;
 }
 async function loadDashboardData(){
@@ -705,12 +705,11 @@ async function restoreSession(){
   }
 }
 const normalizePhone=p=>window.BestLoansStore.normalizeKenyanPhone(p);
-const displayPhone=p=>{const normalized=normalizePhone(p);return normalized?`+${normalized}`:p};
 function sc(id){const t=()=>{const e=document.getElementById(id);e&&e.scrollIntoView({behavior:"smooth"})};
   if(location.hash&&location.hash!=="#/"){location.hash="#/";setTimeout(t,60)}else t()}
 
 const FAQ=[["Do I need to pay to join?","No registration payment is required to create an account or submit a loan application."],
-["Who can apply?","Kenyan residents aged 18 or older with a valid national ID or passport and a Kenyan phone number."],
+["Who can apply?","Kenyan residents aged 18 or older with a valid national ID or passport, a valid email address and a Kenyan phone number. The email is verified; the phone number is not."],
 ["How much can I borrow?","Eligible applicants aged 18 to 25 may request KES 1,000 to KES 30,000. Applicants over 25 may request KES 30,000 to KES 200,000. These are request limits only, not an offer or approval."],
 ["What will my loan cost?","Interest, fees and repayment terms have not been confirmed in this preview. Do not accept a loan without first receiving and reviewing its complete written terms."],
 ["Is my data safe?","In API mode, national ID details are encrypted by the backend and only the last three digits are shown in your profile. Demo mode uses mock data in your browser. The Privacy Policy and verified company contact details must be published before launch."]];
@@ -737,12 +736,12 @@ const home=()=>`
 <p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. Interest, fees, total repayment and eligibility have not been confirmed. Review written terms before accepting any offer.</p></div></div></div>
 
 <section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check its status.</p></div><div class="grid g4">
-${[["Create your account","Register with your name, Kenyan phone number and a secure password."],["Verify your phone","Enter the one-time code sent to your phone."],["Add assurance details","Provide your county, address, guarantor and demo identity details."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
+${[["Create your account","Register with your name, email and a secure password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Add assurance details","Provide your county, address, guarantor and demo identity details."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
 
 <section><div class="w grid g2"><div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
 <h2>What you need</h2>
-<ul class="tick"><li>Kenyan national ID or passport</li><li>You are 18 or older</li><li>A Kenyan phone number</li><li>A phone that can receive SMS codes</li></ul></div>
+<ul class="tick"><li>Kenyan national ID or passport</li><li>You are 18 or older</li><li>A valid email address</li><li>A Kenyan phone number (not verified)</li></ul></div>
 <div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
 <h2>Borrow responsibly</h2><p style="color:var(--m)">Only borrow what you can repay on time. Compare the total repayable amount, not just the monthly figure, before you accept an offer.</p></div></div></section>
@@ -759,58 +758,62 @@ function homeM(){
 }
 
 const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Create your account</h1>
-<p style="color:var(--m)">${demoMode?"Demo mode: this does not create a real account.":"Verify your phone to finish creating your account."}</p>
+<p style="color:var(--m)">${demoMode?"Demo mode: this does not create a real account.":"Verify your email to finish creating your account."}</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
 <form id="f" novalidate><label for="nm">Full name</label><input id="nm" autocomplete="name" maxlength="100" required>
-<label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">Use 07…, 01… or the international +254 format.</small>
+<label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254" required>
 <label for="pw">Password (${demoMode?"6+":"10+"} characters)</label><input id="pw" type="password" autocomplete="new-password" minlength="${demoMode?6:10}" maxlength="128" required><small class="form-hint">Use at least ${demoMode?"6":"10"} characters. Don't reuse another password.</small>
+<label for="confirmPassword">Confirm Password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="${demoMode?6:10}" maxlength="128" required>
 <label class="check"><input id="consent" type="checkbox"><span>I consent to using my information to create and manage my account and application.</span></label>
 <div class="err" id="e" role="alert"></div><button class="btn full">Continue</button></form>
 <p class="note center mt">Already registered? <a href="#/login">Log in</a></p></div></div>`;
 function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
-  const n=$("#nm").value.trim(),phoneInput=$("#ph").value,p=normalizePhone(phoneInput),w=$("#pw").value;
+  const n=$("#nm").value.trim(),email=$("#email").value.trim().toLowerCase(),w=$("#pw").value,confirmPassword=$("#confirmPassword").value;
   const er=m=>{$("#e").textContent=m};
   if(n.length<3)return er("Enter your full name.");
-  if(!p)return er("Enter a valid Kenyan number, such as 0712345678 or +254712345678.");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return er("Enter a valid email address.");
   if(w.length<(demoMode?6:10))return er("Choose a password with at least "+(demoMode?"6":"10")+" characters.");
+  if(w!==confirmPassword)return er("The passwords do not match.");
   if(!$("#consent").checked)return er("Please provide consent to use your information for your account and application.");
   if(!demoMode){
     const button=$("#f button");button.disabled=true;button.textContent="Creating account…";
     try{
-      const result=await api("/auth/register",{method:"POST",body:JSON.stringify({fullName:n,phone:p,password:w,consent:true})});
-      S.user={id:result.userId,name:n,phone:result.phone};location.hash="#/otp";
+      const result=await api("/auth/register",{method:"POST",body:JSON.stringify({fullName:n,email,password:w,consent:true})});
+      S.user={id:result.userId,name:n,email:result.email};location.hash="#/otp";
     }catch(error){er(error.message);button.disabled=false;button.textContent="Continue"}
     return;
   }
-  const user={id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,phone:p,county:"—",created:Date.now(),status:"ACTIVE"};
-  S.user={id:user.id,name:user.name,phone:user.phone};window.BestLoansStore.saveUser(user);location.hash="#/otp"}}
+  const user={id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,email,emailVerified:false,phone:null,county:"—",created:Date.now(),status:"ACTIVE"};
+  S.user={id:user.id,name:user.name,email:user.email};window.BestLoansStore.saveUser(user);location.hash="#/otp"}}
 
-const login=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Welcome back</span><h1 style="font-size:2rem">Log in</h1><p style="color:var(--m)">${demoMode?"Demo mode: any valid phone number and password of 6+ characters works.":"Sign in with your verified phone number and password."}</p>
-<form id="f" novalidate><label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" maxlength="128">
+const login=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Welcome back</span><h1 style="font-size:2rem">Log in</h1><p style="color:var(--m)">${demoMode?"Demo mode: any valid email and password of 6+ characters works.":"Sign in with your verified email and password."}</p>
+<form id="f" novalidate><label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" maxlength="128">
 <div class="err" id="e" role="alert"></div><button class="btn full">Log in</button></form></div></div>`;
-function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const p=normalizePhone($("#ph").value);
-  if(!p||!$("#pw").value.length)return $("#e").textContent="Check your phone number and password.";
+function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const email=$("#email").value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!$("#pw").value.length)return $("#e").textContent="Check your email address and password.";
   if(!demoMode){
     const button=$("#f button");button.disabled=true;button.textContent="Signing in…";
     try{
-      const user=await api("/auth/login",{method:"POST",body:JSON.stringify({phone:p,password:$("#pw").value})});
+      const user=await api("/auth/login",{method:"POST",body:JSON.stringify({email,password:$("#pw").value})});
       setCurrentUser(user);S.profile=null;S.apps=[];
       try{await loadDashboardData()}catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
       location.hash="#/dash";
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Log in"}
     return;
   }
-  const saved=window.BestLoansStore.getUsers().find(user=>normalizePhone(user.phone)===p);
-  const user=saved||{id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Member",phone:p,county:"?",created:Date.now(),status:"ACTIVE"};
+  const saved=window.BestLoansStore.getUsers().find(user=>user.email?.toLowerCase()===email);
+  const user=saved||{id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Member",email,emailVerified:true,phone:null,county:"?",created:Date.now(),status:"ACTIVE"};
   if(!saved)window.BestLoansStore.saveUser(user);
-  S.user={id:user.id,name:user.name,phone:p};S.verified=true;S.profile=user.profile||null;S.assuranceComplete=Boolean(user.profile);S.assurance=S.assuranceComplete?{county:user.profile.county}:null;
+  if(saved&&!saved.emailVerified){S.user={id:user.id,name:user.name,email,phone:user.phone};location.hash="#/otp";return}
+  S.user={id:user.id,name:user.name,email,phone:user.phone};S.verified=true;S.profile=user.profile||null;S.assuranceComplete=Boolean(user.profile);S.assurance=S.assuranceComplete?{county:user.profile.county}:null;
   S.apps=window.BestLoansStore.getApplications().filter(application=>application.uid===user.id).map(application=>({amt:application.amt,days:application.days,purpose:application.purpose,status:application.st}));
   location.hash="#/dash"}}
 
-const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Verify your phone</h1>
-<p style="color:var(--m)">Step 2 of ${demoMode?"3":"2"}. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to your phone."} ${esc(S.user?displayPhone(S.user.phone):"your phone")}.</p>
+const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Verify your email</h1>
+<p style="color:var(--m)">Step 2 of ${demoMode?"3":"2"}. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to"} ${esc(S.user?.email||"your email")}.</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
 <form id="f" novalidate><label for="c">6-digit verification code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
+<label for="ph">Phone number (not verified)</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">This number is saved to your account but will not be verified.</small>
 <div class="err" id="e" role="alert"></div><button class="btn full">Verify and continue</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code</button></form></div></div>`;
 function otpM(){
   $("#resend").onclick=async()=>{
@@ -818,25 +821,29 @@ function otpM(){
     if(demoMode){$("#e").textContent="Demo mode: enter any six digits; no message is sent.";return}
     resend.disabled=true;resend.textContent="Sending…";
     try{
-      await api("/auth/resend-otp",{method:"POST",body:JSON.stringify({phone:S.user.phone})});
+      await api("/auth/resend-otp",{method:"POST",body:JSON.stringify({email:S.user.email})});
       $("#e").textContent="A new verification code was sent.";
       resend.textContent="Code sent";
       setTimeout(()=>{if($("#resend")){$("#resend").disabled=false;$("#resend").textContent="Resend code"}},30000);
     }catch(error){$("#e").textContent=error.message;resend.disabled=false;resend.textContent="Resend code"}
   };
   $("#f").onsubmit=async e=>{e.preventDefault();
-  if(!/^\d{6}$/.test($("#c").value))return $("#e").textContent="Enter the 6-digit code from the SMS.";
+  if(!/^\d{6}$/.test($("#c").value))return $("#e").textContent="Enter the 6-digit code from your email.";
+  const phone=normalizePhone($("#ph").value);
+  if(!phone)return $("#e").textContent="Enter a valid Kenyan number, such as 0712345678 or +254712345678.";
   if(!demoMode){
     const button=$("#f button");button.disabled=true;button.textContent="Verifying…";
     try{
-      const user=await api("/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:S.user.phone,code:$("#c").value})});
+      const user=await api("/auth/verify-otp",{method:"POST",body:JSON.stringify({email:S.user.email,phone,code:$("#c").value})});
       setCurrentUser(user);
-      try{await loadDashboardData()}catch{S.dashboardError="Phone verified, but some dashboard details could not be loaded. Refresh to try again."}
+      try{await loadDashboardData()}catch{S.dashboardError="Email verified, but some dashboard details could not be loaded. Refresh to try again."}
       location.hash="#/dash";
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Verify and continue"}
     return;
   }
-  S.verified=true;location.hash="#/assurance"}}
+  const user=window.BestLoansStore.getUsers().find(item=>item.id===S.user.id);
+  window.BestLoansStore.saveUser({...user,emailVerified:true,phone});
+  S.user.phone=phone;S.verified=true;location.hash="#/assurance"}}
 
 function completion(){return 50+(S.profile?50:0)}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];

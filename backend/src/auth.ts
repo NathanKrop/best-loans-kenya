@@ -9,7 +9,7 @@ const scrypt = promisify(scryptCallback);
 const ACCESS_COOKIE = "blk_access";
 const accessLifetimeSeconds = 15 * 60;
 
-export class SmsProviderError extends Error {}
+export class EmailProviderError extends Error {}
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -146,56 +146,49 @@ function createOtpCode(): string {
   return String(randomBytes(4).readUInt32BE(0) % 1_000_000).padStart(6, "0");
 }
 
-async function sendOtp(phone: string, code: string): Promise<void> {
-  const username = process.env.AT_USERNAME;
-  const apiKey = process.env.AT_API_KEY;
-  if (!username || !apiKey) {
-    if (process.env.NODE_ENV !== "production" && process.env.DEV_OTP_CODE) return;
-    throw new ConfigurationError("SMS delivery is not configured. Set AT_USERNAME and AT_API_KEY.");
+async function sendOtp(email: string, code: string): Promise<void> {
+  if (process.env.NODE_ENV !== "production" && process.env.DEV_OTP_CODE) return;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    throw new EmailProviderError("Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM.");
   }
 
-  const form = new URLSearchParams({
-    username,
-    to: `+${phone}`,
-    message: `Your Best Loans Kenya verification code is ${code}. It expires in 5 minutes.`
-  });
-  const response = await fetch("https://api.africastalking.com/version1/messaging", {
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      apiKey,
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded"
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
     },
     signal: AbortSignal.timeout(10_000),
-    body: form
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: "Your Best Loans Kenya verification code",
+      text: `Your verification code is ${code}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`
+    })
   });
-  let result: {
-    SMSMessageData?: { Recipients?: Array<{ status?: string }> };
-  } = {};
-  try {
-    result = await response.json() as typeof result;
-  } catch {
-    throw new SmsProviderError("SMS provider returned an invalid response.");
-  }
-  if (!response.ok || !result.SMSMessageData?.Recipients?.some(recipient => recipient.status === "Success")) {
-    throw new SmsProviderError("SMS provider could not deliver the verification code.");
+  if (!response.ok) {
+    throw new EmailProviderError("Email provider could not deliver the verification code.");
   }
 }
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(3).max(100),
-  phone: z.string().min(9).max(16),
+  email: z.string().trim().email().max(254).transform(value => value.toLowerCase()),
   password: z.string().min(10).max(128),
   consent: z.literal(true)
 });
 
 const verifySchema = z.object({
+  email: z.string().trim().email().max(254).transform(value => value.toLowerCase()),
   phone: z.string().min(9).max(16),
   code: z.string().regex(/^\d{6}$/)
 });
 
 const loginSchema = z.object({
-  phone: z.string().min(9).max(16),
+  email: z.string().trim().email().max(254).transform(value => value.toLowerCase()),
   password: z.string().min(1).max(128)
 });
 
@@ -205,30 +198,29 @@ export function createAuthRouter(express: typeof import("express")) {
   router.post("/register", async (request, response, next) => {
     try {
       const input = registerSchema.parse(request.body);
-      const phone = normalizeKenyanPhone(input.phone);
       const passwordHash = await hashPassword(input.password);
       const user = await prisma.user.create({
         data: {
           fullName: input.fullName,
-          phone,
+          email: input.email,
           passwordHash,
           consentPolicyVersion: process.env.PRIVACY_POLICY_VERSION || "2026-10"
         },
-        select: { id: true, phone: true }
+        select: { id: true, email: true }
       });
 
       const code = createOtpCode();
       try {
         await prisma.otpCode.create({
-          data: { userId: user.id, codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
+          data: { userId: user.id, purpose: "VERIFY_EMAIL", codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
         });
-        await sendOtp(phone, code);
+        await sendOtp(input.email, code);
       } catch (error) {
         await prisma.user.delete({ where: { id: user.id } });
         throw error;
       }
 
-      response.status(201).json({ data: { userId: user.id, phone: user.phone, message: "Verification code sent." } });
+      response.status(201).json({ data: { userId: user.id, email: user.email, message: "Verification code sent." } });
     } catch (error) {
       next(error);
     }
@@ -236,16 +228,17 @@ export function createAuthRouter(express: typeof import("express")) {
 
   router.post("/resend-otp", async (request, response, next) => {
     try {
-      const input = z.object({ phone: z.string().min(9).max(16) }).parse(request.body);
-      const phone = normalizeKenyanPhone(input.phone);
-      const user = await prisma.user.findUnique({ where: { phone } });
-      if (!user || user.phoneVerifiedAt) {
+      const input = z.object({
+        email: z.string().trim().email().max(254).transform(value => value.toLowerCase())
+      }).parse(request.body);
+      const user = await prisma.user.findUnique({ where: { email: input.email } });
+      if (!user || user.emailVerifiedAt) {
         response.status(400).json({ error: { code: "OTP_UNAVAILABLE", message: "A new verification code cannot be sent." } });
         return;
       }
 
       const sentInLastHour = await prisma.otpCode.count({
-        where: { userId: user.id, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } }
+        where: { userId: user.id, purpose: "VERIFY_EMAIL", createdAt: { gte: new Date(Date.now() - 60 * 60_000) } }
       });
       if (sentInLastHour >= 3) {
         response.status(429).json({ error: { code: "OTP_RATE_LIMIT", message: "You have reached the code request limit. Try again later." } });
@@ -255,14 +248,14 @@ export function createAuthRouter(express: typeof import("express")) {
       const code = createOtpCode();
       await prisma.$transaction([
         prisma.otpCode.updateMany({
-          where: { userId: user.id, consumedAt: null },
+          where: { userId: user.id, purpose: "VERIFY_EMAIL", consumedAt: null },
           data: { consumedAt: new Date() }
         }),
         prisma.otpCode.create({
-          data: { userId: user.id, codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
+          data: { userId: user.id, purpose: "VERIFY_EMAIL", codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
         })
       ]);
-      await sendOtp(phone, code);
+      await sendOtp(input.email, code);
       response.json({ data: { message: "Verification code sent." } });
     } catch (error) {
       next(error);
@@ -273,7 +266,7 @@ export function createAuthRouter(express: typeof import("express")) {
     try {
       const input = verifySchema.parse(request.body);
       const phone = normalizeKenyanPhone(input.phone);
-      const user = await prisma.user.findUnique({ where: { phone } });
+      const user = await prisma.user.findUnique({ where: { email: input.email } });
       if (!user) {
         response.status(400).json({ error: { code: "INVALID_CODE", message: "The code is invalid or expired." } });
         return;
@@ -282,7 +275,7 @@ export function createAuthRouter(express: typeof import("express")) {
       const otp = await prisma.otpCode.findFirst({
         where: {
           userId: user.id,
-          purpose: "VERIFY_PHONE",
+          purpose: "VERIFY_EMAIL",
           consumedAt: null,
           expiresAt: { gt: new Date() },
           attempts: { lt: 5 }
@@ -302,14 +295,15 @@ export function createAuthRouter(express: typeof import("express")) {
 
       await prisma.$transaction([
         prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } }),
-        prisma.user.update({ where: { id: user.id }, data: { phoneVerifiedAt: new Date() } })
+        prisma.user.update({ where: { id: user.id }, data: { phone, emailVerifiedAt: new Date() } })
       ]);
       setAccessCookie(response, user.id);
       response.json({
         data: {
           id: user.id,
           fullName: user.fullName,
-          phone: user.phone,
+          email: user.email,
+          phone,
         }
       });
     } catch (error) {
@@ -320,14 +314,13 @@ export function createAuthRouter(express: typeof import("express")) {
   router.post("/login", async (request, response, next) => {
     try {
       const input = loginSchema.parse(request.body);
-      const phone = normalizeKenyanPhone(input.phone);
-      const user = await prisma.user.findUnique({ where: { phone } });
+      const user = await prisma.user.findUnique({ where: { email: input.email } });
       if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
-        response.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Phone number or password is incorrect." } });
+        response.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Email or password is incorrect." } });
         return;
       }
-      if (!user.phoneVerifiedAt || user.status !== "ACTIVE") {
-        response.status(403).json({ error: { code: "ACCOUNT_NOT_READY", message: "Verify your phone before signing in." } });
+      if (!user.emailVerifiedAt || user.status !== "ACTIVE") {
+        response.status(403).json({ error: { code: "ACCOUNT_NOT_READY", message: "Verify your email before signing in." } });
         return;
       }
       setAccessCookie(response, user.id);
@@ -335,6 +328,7 @@ export function createAuthRouter(express: typeof import("express")) {
         data: {
           id: user.id,
           fullName: user.fullName,
+          email: user.email,
           phone: user.phone,
         }
       });
@@ -352,7 +346,7 @@ export function createAuthRouter(express: typeof import("express")) {
     try {
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
-        select: { id: true, fullName: true, phone: true }
+        select: { id: true, fullName: true, email: true, phone: true }
       });
       if (!user) {
         response.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Please sign in again." } });
@@ -362,6 +356,7 @@ export function createAuthRouter(express: typeof import("express")) {
         data: {
           id: user.id,
           fullName: user.fullName,
+          email: user.email,
           phone: user.phone,
         }
       });

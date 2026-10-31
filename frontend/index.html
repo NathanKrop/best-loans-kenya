@@ -349,6 +349,85 @@ input[type=range]:focus { box-shadow: none; }
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--err); }
 input[type="checkbox"] { accent-color: var(--emerald); }
 footer .prelaunch { font-weight: 700; color: #FDE68A; }
+body.dashboard-mode {
+  --navy: #0B1724;
+  --navy-dark: #07111C;
+  --bg: #08131F;
+  --card-bg: #101F2E;
+  --text-heading: #F1F5F9;
+  --text-muted: #A9B8C8;
+  --text-on-navy-muted: #B5C4D3;
+  --border: #26394B;
+  --ink: var(--text-heading);
+  --c: var(--card-bg);
+  --m: var(--text-muted);
+  --b: var(--border);
+  --tint: #14352D;
+  --tint-navy: rgba(255, 255, 255, .06);
+  --err: #F87171;
+  --err-bg: rgba(248, 113, 113, .14);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .2);
+  --shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, .26);
+  background:
+    radial-gradient(ellipse at 85% 0, rgba(16, 185, 129, .08), transparent 34rem),
+    var(--bg);
+}
+.dashboard-mode #app { min-height: calc(100vh - 68px); }
+.dashboard-mode #app h1,
+.dashboard-mode #app h2,
+.dashboard-mode #app h3,
+.dashboard-mode #app label { color: var(--text-heading); }
+.dashboard-mode #app .card {
+  background: linear-gradient(145deg, rgba(19, 38, 55, .98), rgba(13, 29, 44, .98));
+  border-color: rgba(148, 170, 190, .16);
+  box-shadow: var(--shadow);
+}
+.dashboard-mode #app .card-navy-icon {
+  border-color: rgba(16, 185, 129, .42);
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, .1);
+}
+.dashboard-mode #app input:not([type="checkbox"]):not([type="range"]),
+.dashboard-mode #app select,
+.dashboard-mode #app textarea {
+  background: #0A1723;
+  border-color: #31465A;
+  color: var(--text-heading);
+  color-scheme: dark;
+}
+.dashboard-mode #app input::placeholder,
+.dashboard-mode #app textarea::placeholder { color: #8294A7; }
+.dashboard-mode #app .btn.secondary {
+  background: #1B3043;
+  color: #E2EAF1;
+}
+.dashboard-mode #app .btn.secondary:hover { background: #263F55; }
+.dashboard-mode #app .stat-pill {
+  background: rgba(16, 185, 129, .14);
+  color: #6EE7B7;
+}
+.dashboard-mode #app .application-item {
+  background: rgba(4, 14, 23, .3);
+  border-color: rgba(148, 170, 190, .18);
+}
+.dashboard-mode #app .badge {
+  background: rgba(148, 170, 190, .14);
+  color: #D1DCE6;
+}
+.dashboard-mode #app .badge.ok {
+  background: rgba(16, 185, 129, .16);
+  color: #6EE7B7;
+}
+.dashboard-mode #app .badge.bad {
+  background: rgba(248, 113, 113, .14);
+  color: #FCA5A5;
+}
+.dashboard-mode #app .disclosure {
+  background: rgba(16, 185, 129, .1);
+  color: #D7E9E1;
+}
+.dashboard-mode footer { background: #07111C; }
 @media (max-width: 600px) {
   header .w { gap: 8px; height: 60px; padding: 0 14px; }
   .logo { font-size: 1rem; gap: 7px; }
@@ -821,6 +900,7 @@ function go(){
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
   if(p==="/otp"&&!S.user){location.hash="#/signup";return}
   if(p==="/otp"&&S.verified){location.hash="#/dash";return}
+  document.body.classList.toggle("dashboard-mode",p==="/dash");
   $("#app").innerHTML=r[0]();r[1]&&r[1]();
   if(demoMode)$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><div class="demo-notice" role="status"><b>Demo only:</b> accounts, verification and loan applications are simulated.</div></div>`);
   $("#hb").innerHTML=S.user?`<a class="btn sm" href="#/dash">Dashboard</a> <button class="btn sm line" id="logout">Log out</button>`:`<a class="btn sm" href="#/login" style="background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.4)">Log in</a> <a class="btn sm" href="#/signup">Join</a>`;

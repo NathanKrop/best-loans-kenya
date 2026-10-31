@@ -2,7 +2,21 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
-import * as helmet from "helmet";
+import {
+  contentSecurityPolicy,
+  crossOriginOpenerPolicy,
+  crossOriginResourcePolicy,
+  originAgentCluster,
+  referrerPolicy,
+  strictTransportSecurity,
+  xContentTypeOptions,
+  xDnsPrefetchControl,
+  xDownloadOptions,
+  xFrameOptions,
+  xPermittedCrossDomainPolicies,
+  xPoweredBy,
+  xXssProtection
+} from "helmet";
 import { ZodError } from "zod";
 import { createAuthRouter, SmsProviderError } from "./auth.js";
 import { prisma } from "./db.js";
@@ -17,7 +31,21 @@ const port = Number(process.env.PORT || 3000);
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:8000";
 
 app.disable("x-powered-by");
-app.use(helmet.default());
+app.use(
+  contentSecurityPolicy(),
+  crossOriginOpenerPolicy(),
+  crossOriginResourcePolicy(),
+  originAgentCluster(),
+  referrerPolicy(),
+  strictTransportSecurity(),
+  xContentTypeOptions(),
+  xDnsPrefetchControl(),
+  xDownloadOptions(),
+  xFrameOptions(),
+  xPermittedCrossDomainPolicies(),
+  xPoweredBy(),
+  xXssProtection()
+);
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 app.use("/api/auth", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));

@@ -310,7 +310,6 @@ export function createAuthRouter(express: typeof import("express")) {
           id: user.id,
           fullName: user.fullName,
           phone: user.phone,
-          paid: Boolean(user.registrationPaidAt)
         }
       });
     } catch (error) {
@@ -337,7 +336,6 @@ export function createAuthRouter(express: typeof import("express")) {
           id: user.id,
           fullName: user.fullName,
           phone: user.phone,
-          paid: Boolean(user.registrationPaidAt)
         }
       });
     } catch (error) {
@@ -354,7 +352,7 @@ export function createAuthRouter(express: typeof import("express")) {
     try {
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
-        select: { id: true, fullName: true, phone: true, registrationPaidAt: true }
+        select: { id: true, fullName: true, phone: true }
       });
       if (!user) {
         response.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Please sign in again." } });
@@ -365,7 +363,6 @@ export function createAuthRouter(express: typeof import("express")) {
           id: user.id,
           fullName: user.fullName,
           phone: user.phone,
-          paid: Boolean(user.registrationPaidAt)
         }
       });
     } catch (error) {

@@ -20,10 +20,8 @@ import {
 import { ZodError } from "zod";
 import { createAuthRouter, SmsProviderError } from "./auth.js";
 import { prisma } from "./db.js";
-import { ConfigurationError, InputError, MpesaProviderError } from "./lib/mpesa.js";
+import { InputError } from "./lib/mpesa.js";
 import { createLoansRouter } from "./loans.js";
-import { createPaymentsRouter } from "./payments.js";
-import { startPaymentReconciliation } from "./jobs/payments.js";
 import { Prisma } from "@prisma/client";
 
 const app = express();
@@ -49,9 +47,7 @@ app.use(
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 app.use("/api/auth", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
-app.use("/api/payments/registration", rateLimit({ windowMs: 10 * 60_000, limit: 3, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/auth", createAuthRouter(express));
-app.use("/api/payments", createPaymentsRouter(express));
 app.use("/api", createLoansRouter(express));
 
 app.get("/health", (_request, response) => {
@@ -73,14 +69,6 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
     response.status(400).json({ error: { code: "INVALID_INPUT", message: error.message } });
     return;
   }
-  if (error instanceof ConfigurationError) {
-    response.status(503).json({ error: { code: "SERVICE_NOT_CONFIGURED", message: error.message } });
-    return;
-  }
-  if (error instanceof MpesaProviderError) {
-    response.status(502).json({ error: { code: "PAYMENT_PROVIDER_ERROR", message: error.message } });
-    return;
-  }
   if (error instanceof SmsProviderError) {
     response.status(502).json({ error: { code: "SMS_PROVIDER_ERROR", message: error.message } });
     return;
@@ -96,5 +84,4 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
 await prisma.$connect();
 app.listen(port, () => {
   console.log(`Best Loans API listening on port ${port}`);
-  startPaymentReconciliation();
 });

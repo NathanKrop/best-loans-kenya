@@ -28,24 +28,22 @@ test("records are available after loading the store again", () => {
   const storage = createStorage();
   const { store } = loadStore(storage);
 
-  store.saveUser({ id: "user-1", name: "Amina", phone: "0712345678", paid: false });
-  store.savePayment({ id: "payment-1", userId: "user-1", amount: 250, status: "SUCCESS" });
+  store.saveUser({ id: "user-1", name: "Amina", phone: "0712345678" });
   store.saveApplication({ id: "application-1", userId: "user-1", amount: 5000, status: "PENDING" });
 
   const reloaded = loadStore(storage).store;
   assert.equal(reloaded.getUsers()[0].name, "Amina");
-  assert.equal(reloaded.getPayments()[0].amount, 250);
   assert.equal(reloaded.getApplications()[0].status, "PENDING");
 });
 
 test("updating a record replaces it without duplicating it", () => {
   const { store } = loadStore(createStorage());
 
-  store.saveUser({ id: "user-1", paid: false });
-  store.saveUser({ id: "user-1", paid: true });
+  store.saveUser({ id: "user-1", name: "Amina" });
+  store.saveUser({ id: "user-1", name: "Amina updated" });
 
   assert.equal(store.getUsers().length, 1);
-  assert.equal(store.getUsers()[0].paid, true);
+  assert.equal(store.getUsers()[0].name, "Amina updated");
 });
 
 test("subscribers receive updates from another page", () => {

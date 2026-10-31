@@ -553,7 +553,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
     </a>
     <nav>
       <button onclick="sc('how')">How it works</button>
-      <button onclick="sc('fee')">Fees</button>
+      <button onclick="sc('faq')">FAQ</button>
       <button onclick="sc('faq')">FAQ</button>
     </nav>
     <span id="hb"></span>
@@ -565,15 +565,14 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
     <h3>Best Loans Kenya</h3>
     <p class="prelaunch">Company, licensing and contact details must be verified and published before launch.</p>
     <p>Best Loans Kenya is a prototype. Do not use it to submit real personal or payment information.</p>
-    <p>Borrow responsibly: only borrow what you can repay, and late repayment can affect your credit record. The KES 250 registration fee is charged once and does not guarantee loan approval.</p>
+    <p>Borrow responsibly: only borrow what you can repay, and late repayment can affect your credit record.</p>
     <p>Terms, Privacy and Refund policies are not yet published. · <a href="../admin/index.html">Admin demo</a></p>
   </div>
 </footer>
 <script src="../shared/demo-store.js"></script>
 <script>
 "use strict";
-const FEE=250;
-const S={user:null,verified:false,paid:false,receipt:null,profile:null,apps:[],dashboardError:null,profileEditing:false,notice:null};
+const S={user:null,verified:false,profile:null,apps:[],dashboardError:null,profileEditing:false,notice:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const KES=n=>"KES "+Math.round(n).toLocaleString("en-KE");
@@ -597,16 +596,7 @@ async function api(path,options={}){
 }
 function setCurrentUser(user){
   S.user={id:user.id,name:user.fullName,phone:user.phone};
-  S.verified=true;S.paid=!!user.paid;
-}
-async function loadPaymentReceipt(){
-  const payments=await api("/payments/me");
-  const payment=payments.find(item=>item.status==="SUCCESS"&&item.mpesaReceiptNumber);
-  S.receipt=payment?{
-    ref:payment.mpesaReceiptNumber,
-    date:new Date(payment.createdAt).toLocaleDateString("en-KE"),
-    phone:payment.phone
-  }:null;
+  S.verified=true;
 }
 async function loadDashboardData(){
   const [profile,applications]=await Promise.all([api("/profile/me"),api("/loans/me")]);
@@ -630,9 +620,7 @@ async function restoreSession(){
   if(demoMode)return;
   try{
     setCurrentUser(await api("/auth/me"));
-    if(S.paid){
-      await Promise.all([loadPaymentReceipt(),loadDashboardData()]);
-    }
+    await loadDashboardData();
   }catch(error){
     if(error.status!==401)console.error("Could not restore the signed-in session.");
   }
@@ -641,8 +629,7 @@ const okPhone=p=>/^(07|01)\d{8}$/.test(p.replace(/\s/g,""));
 function sc(id){const t=()=>{const e=document.getElementById(id);e&&e.scrollIntoView({behavior:"smooth"})};
   if(location.hash&&location.hash!=="#/"){location.hash="#/";setTimeout(t,60)}else t()}
 
-const FAQ=[["Do I need to pay to join?","Yes. There is a one-time registration fee of KES 250, paid via M-Pesa. It is shown before you pay, and it does not guarantee that a loan will be approved."],
-["How do I pay?","After signing up and verifying your phone, you get an M-Pesa prompt on your phone. Enter your PIN to confirm."],
+const FAQ=[["Do I need to pay to join?","No registration payment is required to create an account or submit a loan application."],
 ["Who can apply?","Kenyan residents aged 18 or older with a valid national ID and an active M-Pesa number."],
 ["How much can I borrow?","You can submit a request within the range shown. The amount requested is not an approval or a promise that funds will be provided."],
 ["What will my loan cost?","Interest, fees and repayment terms have not been confirmed in this preview. Do not accept a loan without first receiving and reviewing its complete written terms."],
@@ -654,7 +641,7 @@ const home=()=>`
 <h1>Start your loan application from your phone</h1>
 <p>Create an account, complete your profile and submit an application online. You can track its status from your dashboard.</p>
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px">
-  <a class="btn sun" href="#/signup">Get started for KES ${FEE}</a>
+  <a class="btn sun" href="#/signup">Get started</a>
   <button class="btn line" onclick="sc('how')">See how it works</button>
 </div>
 <div class="hero-points"><span>Secure account</span><span>Clear application steps</span><span>No approval guarantee</span></div>
@@ -674,18 +661,14 @@ ${[["Create your account","Register with your name, phone number and a secure pa
 <section><div class="w grid g2"><div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
 <h2>What you need</h2>
-<ul class="tick"><li>Kenyan national ID</li><li>You are 18 or older</li><li>A phone number that can receive an M-Pesa payment prompt</li><li>A phone that can receive SMS codes</li></ul></div>
+<ul class="tick"><li>Kenyan national ID</li><li>You are 18 or older</li><li>A Kenyan phone number</li><li>A phone that can receive SMS codes</li></ul></div>
 <div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
 <h2>Borrow responsibly</h2><p style="color:var(--m)">Only borrow what you can repay on time. Compare the total repayable amount, not just the monthly figure, before you accept an offer.</p></div></div></section>
 
-<section id="fee"><div class="w"><div class="fee grid g2"><div><span class="eyebrow">Transparent fees</span><h2>The KES ${FEE} fee, explained</h2><p>You see the one-time registration fee before you make a payment.</p></div>
-<div><h3>It covers</h3><ul class="tick"><li>Account setup and phone verification</li><li>Access to loan applications</li><li>Application status tracking</li></ul>
-<h3 class="mt">It does not cover</h3><ul class="tick no"><li>A guarantee of loan approval</li><li>Loan repayments or interest</li></ul></div></div></div></section>
-
 <section id="faq" style="padding-top:0"><div class="w"><h2>Common questions</h2>${FAQ.map(f=>`<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join("")}
 <div class="center mt"><a class="btn" href="#/signup">Create your account</a></div></div></section>
-<div class="cta"><a class="btn sun full" href="${S.user?"#/dash":"#/signup"}">${S.user?"Open my dashboard":"Get started for KES "+FEE}</a></div>`;
+<div class="cta"><a class="btn sun full" href="${S.user?"#/dash":"#/signup"}">${S.user?"Open my dashboard":"Get started"}</a></div>`;
 
 function homeM(){
   const a=$("#amt"),d=$("#day");
@@ -694,13 +677,13 @@ function homeM(){
   a.oninput=d.oninput=u;u();
 }
 
-const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of 3</span><h1 style="font-size:2rem">Create your account</h1>
-<p style="color:var(--m)">${demoMode?"Demo mode: this does not create a real account.":"Verify your phone, then review the KES "+FEE+" registration fee before paying."}</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div><div class="step-item"><span>3</span>Payment</div></div>
+const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of 2</span><h1 style="font-size:2rem">Create your account</h1>
+<p style="color:var(--m)">${demoMode?"Demo mode: this does not create a real account.":"Verify your phone to finish creating your account."}</p>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div></div>
 <form id="f" novalidate><label for="nm">Full name</label><input id="nm" autocomplete="name" maxlength="100" required>
-<label for="ph">M-Pesa phone number</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678" autocomplete="tel" maxlength="16" required><small class="form-hint">Use a Kenyan number starting with 07 or 01.</small>
-<label for="pw">Password (${demoMode?"6+":"10+"} characters)</label><input id="pw" type="password" autocomplete="new-password" minlength="${demoMode?6:10}" maxlength="128" required><small class="form-hint">Use at least ${demoMode?"6":"10"} characters. Don't reuse your M-Pesa PIN.</small>
-<label class="check"><input id="ag" type="checkbox"><span>I understand that the KES ${FEE} one-time registration fee does not guarantee loan approval. Terms and privacy information must be reviewed before launch.</span></label>
+<label for="ph">Phone number</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678" autocomplete="tel" maxlength="16" required><small class="form-hint">Use a Kenyan number starting with 07 or 01.</small>
+<label for="pw">Password (${demoMode?"6+":"10+"} characters)</label><input id="pw" type="password" autocomplete="new-password" minlength="${demoMode?6:10}" maxlength="128" required><small class="form-hint">Use at least ${demoMode?"6":"10"} characters. Don't reuse another password.</small>
+<label class="check"><input id="consent" type="checkbox"><span>I consent to using my information to create and manage my account and application.</span></label>
 <div class="err" id="e" role="alert"></div><button class="btn full">Continue</button></form>
 <p class="note center mt">Already registered? <a href="#/login">Log in</a></p></div></div>`;
 function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
@@ -709,7 +692,7 @@ function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
   if(n.length<3)return er("Enter your full name.");
   if(!okPhone(p))return er("Enter a valid phone number starting with 07 or 01, for example 0712345678.");
   if(w.length<(demoMode?6:10))return er("Choose a password with at least "+(demoMode?"6":"10")+" characters.");
-  if(!$("#ag").checked)return er("Tick the box to accept the terms and fee notice.");
+  if(!$("#consent").checked)return er("Please provide consent to use your information for your account and application.");
   if(!demoMode){
     const button=$("#f button");button.disabled=true;button.textContent="Creating account…";
     try{
@@ -718,7 +701,7 @@ function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
     }catch(error){er(error.message);button.disabled=false;button.textContent="Continue"}
     return;
   }
-  const user={id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,phone:p,county:"—",created:Date.now(),paid:false,status:"ACTIVE"};
+  const user={id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,phone:p,county:"—",created:Date.now(),status:"ACTIVE"};
   S.user={id:user.id,name:user.name,phone:user.phone};window.BestLoansStore.saveUser(user);location.hash="#/otp"}}
 
 const login=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Welcome back</span><h1 style="font-size:2rem">Log in</h1><p style="color:var(--m)">${demoMode?"Demo mode: any valid phone number and password of 6+ characters works.":"Sign in with your verified phone number and password."}</p>
@@ -731,26 +714,21 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const p=$("#ph")
     try{
       const user=await api("/auth/login",{method:"POST",body:JSON.stringify({phone:p,password:$("#pw").value})});
       setCurrentUser(user);S.profile=null;S.apps=[];
-      if(S.paid){
-        try{await Promise.all([loadPaymentReceipt(),loadDashboardData()])}
-        catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
-      }
+      try{await loadDashboardData()}catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
       location.hash="#/dash";
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Log in"}
     return;
   }
   const saved=window.BestLoansStore.getUsers().find(user=>user.phone===p);
-  const user=saved||{id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Member",phone:p,county:"—",created:Date.now(),paid:false,status:"ACTIVE"};
+  const user=saved||{id:"user-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),name:"Member",phone:p,county:"?",created:Date.now(),status:"ACTIVE"};
   if(!saved)window.BestLoansStore.saveUser(user);
-  S.user={id:user.id,name:user.name,phone:user.phone};S.verified=true;S.paid=!!user.paid;S.profile=user.profile||null;
-  const payment=window.BestLoansStore.getPayments().find(item=>item.uid===user.id);
-  S.receipt=payment?{ref:payment.ref,date:new Date(payment.t).toLocaleDateString("en-KE"),phone:payment.phone}:null;
+  S.user={id:user.id,name:user.name,phone:user.phone};S.verified=true;S.profile=user.profile||null;
   S.apps=window.BestLoansStore.getApplications().filter(application=>application.uid===user.id).map(application=>({amt:application.amt,days:application.days,purpose:application.purpose,status:application.st}));
   location.hash="#/dash"}}
 
-const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of 3</span><h1 style="font-size:2rem">Verify your phone</h1>
+const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of 2</span><h1 style="font-size:2rem">Verify your phone</h1>
 <p style="color:var(--m)">Step 2 of 3. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to your phone."} ${esc(S.user?S.user.phone:"your phone")}.</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item"><span>3</span>Payment</div></div>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div></div>
 <form id="f" novalidate><label for="c">6-digit verification code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
 <div class="err" id="e" role="alert"></div><button class="btn full">Verify and continue</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code</button></form></div></div>`;
 function otpM(){
@@ -772,101 +750,16 @@ function otpM(){
     try{
       const user=await api("/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:S.user.phone,code:$("#c").value})});
       setCurrentUser(user);
-      if(S.paid){
-        try{await Promise.all([loadPaymentReceipt(),loadDashboardData()])}
-        catch{S.dashboardError="Phone verified, but some dashboard details could not be loaded. Refresh to try again."}
-        location.hash="#/dash";
-      }else location.hash="#/pay";
+      try{await loadDashboardData()}catch{S.dashboardError="Phone verified, but some dashboard details could not be loaded. Refresh to try again."}
+      location.hash="#/dash";
     }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Verify and continue"}
     return;
   }
-  S.verified=true;location.hash="#/pay"}}
+  S.verified=true;location.hash="#/dash"}}
 
-const pay=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Pay the registration fee</h1>
-<p style="color:var(--m)">Step 3 of 3. One-time payment via M-Pesa. It does not guarantee loan approval.</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item done"><span>3</span>Payment</div></div>
-<div class="card" style="box-shadow:none;border-color:var(--border);background:var(--bg);margin:16px 0"><div class="row"><span>Registration fee</span><span class="big stat-navy">${KES(FEE)}</span></div>
-<div id="pf"><label for="ph">M-Pesa number</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" value="${esc(S.user?S.user.phone:"")}">
-<div class="err" id="e" role="alert"></div><button class="btn full" id="pb" style="margin-top:14px">Pay with M-Pesa</button></div></div>
-<p class="disclosure">This fee is for registration only. It is not a loan deposit, does not reduce future repayments and does not guarantee approval.</p>
-<p class="note">${demoMode?"Demo mode: no real payment is made.":"A payment prompt will appear on your phone. Never share your M-Pesa PIN with anyone."}</p></div></div>`;
-function payM(){
-  const button=$("#pb");
-  if(!button)return;
-  button.onclick=async()=>{
-  const p=$("#ph").value.replace(/\s/g,"");
-  if(!okPhone(p))return $("#e").textContent="Enter a valid M-Pesa number.";
-  if(!demoMode){
-    button.disabled=true;button.textContent="Starting payment…";
-    $("#pf").setAttribute("aria-live","polite");
-    try{
-      const result=await api("/payments/registration/stk-push",{method:"POST",body:JSON.stringify({phone:p})});
-      const paymentId=result.paymentId||result.id;
-      if(!paymentId)throw new Error("The payment service returned an invalid response.");
-      $("#pf").innerHTML=`<div class="center mt" role="status"><div class="spin"></div><b>Check your phone</b><p style="margin:6px auto 0;color:var(--m)">Enter your M-Pesa PIN to pay ${KES(FEE)}. We are waiting for confirmation from Safaricom.</p></div>`;
-      const started=Date.now();
-      while(Date.now()-started<90000){
-        const status=await api("/payments/"+encodeURIComponent(paymentId)+"/status");
-        if(location.hash!=="#/pay")return;
-        if(status.status==="SUCCESS"){
-          S.paid=true;S.receipt=status.mpesaReceiptNumber?{ref:status.mpesaReceiptNumber,date:new Date(status.createdAt).toLocaleDateString("en-KE"),phone:status.phone}:null;
-          try{await loadDashboardData()}catch{S.dashboardError="Payment confirmed, but some dashboard details could not be loaded. Refresh to try again."}
-          location.hash="#/dash";return;
-        }
-        if(["FAILED","CANCELLED","TIMEOUT"].includes(status.status)){
-          const message=status.resultDesc||"The payment could not be completed.";
-          const canRetry=status.status!=="TIMEOUT"||message==="The payment request timed out. Please try again.";
-          $("#pf").innerHTML=`<div class="err" role="alert">${esc(message)}${canRetry?" You can try again.":""}</div>${canRetry?`<button class="btn full" id="retry" style="margin-top:14px">Try again</button>`:""}`;
-          if(canRetry)$("#retry").onclick=()=>go();return;
-        }
-        await new Promise(resolve=>setTimeout(resolve,3000));
-      }
-      $("#pf").innerHTML=`<p class="note" role="status">We haven't received confirmation yet. Check your M-Pesa messages before retrying.</p><button class="btn full" id="check" style="margin-top:14px">Check payment status</button>`;
-      $("#check").onclick=()=>{S.paymentId=paymentId;location.hash="#/pay";setTimeout(()=>pollPayment(paymentId),0)};
-    }catch(error){
-      if(location.hash!=="#/pay")return;
-      const retryable=error.code!=="PAYMENT_STATUS_UNKNOWN";
-      $("#pf").innerHTML=`<div class="err" role="alert">${esc(error.message)}</div>${retryable?`<button class="btn full" id="retry" style="margin-top:14px">Try again</button>`:""}`;
-      if(retryable)$("#retry").onclick=()=>go();
-    }
-    return;
-  }
-  $("#pf").innerHTML=`<div class="center mt" role="status"><div class="spin"></div><b>Check your phone</b><p style="margin:6px auto 0;color:var(--m)">Enter your M-Pesa PIN to pay ${KES(FEE)}.</p></div>`;
-  setTimeout(()=>{S.paid=true;S.receipt={ref:"BLK"+Math.random().toString(36).slice(2,8).toUpperCase(),date:new Date().toLocaleDateString("en-KE"),phone:p};
-    const user=window.BestLoansStore.getUsers().find(item=>item.id===S.user.id);
-    window.BestLoansStore.saveUser({...user,phone:p,paid:true});
-    window.BestLoansStore.savePayment({id:S.receipt.ref,ref:S.receipt.ref,uid:S.user.id,phone:p,amt:FEE,st:"SUCCESS",t:Date.now()});location.hash="#/dash"},3000)}}
-
-async function pollPayment(paymentId){
-  if(location.hash!=="#/pay")return;
-  $("#pf").innerHTML=`<div class="center mt" role="status"><div class="spin"></div><b>Checking payment</b><p style="margin:6px auto 0;color:var(--m)">Please wait while we confirm with Safaricom.</p></div>`;
-  try{
-    const status=await api("/payments/"+encodeURIComponent(paymentId)+"/status");
-    if(location.hash!=="#/pay")return;
-    if(status.status==="SUCCESS"){
-      S.paid=true;S.receipt=status.mpesaReceiptNumber?{ref:status.mpesaReceiptNumber,date:new Date(status.createdAt).toLocaleDateString("en-KE"),phone:status.phone}:null;
-      try{await loadDashboardData()}catch{S.dashboardError="Payment confirmed, but some dashboard details could not be loaded. Refresh to try again."}
-      location.hash="#/dash";return;
-    }
-    if(["FAILED","CANCELLED","TIMEOUT"].includes(status.status)){
-      const message=status.resultDesc||"This payment is "+status.status.toLowerCase()+".";
-      const canRetry=status.status!=="TIMEOUT"||message==="The payment request timed out. Please try again.";
-      $("#pf").innerHTML=`<div class="err" role="alert">${esc(message)}${canRetry?" You can try again.":""}</div>${canRetry?`<button class="btn full" id="retry" style="margin-top:14px">Try again</button>`:""}`;
-      if(canRetry)$("#retry").onclick=()=>{location.hash="#/pay";setTimeout(go,0)};return;
-    }
-    $("#pf").innerHTML=`<p class="note" role="status">This payment is still pending. Check your M-Pesa messages before starting another request.</p><button class="btn full" id="check" style="margin-top:14px">Check again</button>`;
-    $("#check").onclick=()=>pollPayment(paymentId);
-  }catch(error){
-    if(location.hash!=="#/pay")return;
-    $("#pf").innerHTML=`<div class="err" role="alert">${esc(error.message)}</div><button class="btn full" id="check" style="margin-top:14px">Check again</button>`;
-    $("#check").onclick=()=>pollPayment(paymentId);
-  }
-}
-
-function completion(){return 25+(S.paid?25:0)+(S.profile?50:0)}
+function completion(){return 50+(S.profile?50:0)}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];
 const dash=()=>{
-  if(!S.paid)return `<div class="narrow center"><div class="card" style="padding:36px 24px"><div class="card-navy-icon" style="margin:0 auto 16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div><span class="eyebrow">Account setup</span><h1 style="font-size:2rem">Finish registration</h1><p style="margin:0 auto 18px;color:var(--m)">Verify your phone and complete the one-time KES ${FEE} registration payment to unlock your profile and application dashboard.</p><a class="btn" href="#/${S.verified?"pay":"otp"}">Continue registration</a><p class="note">The registration fee does not guarantee a loan or loan approval.</p></div></div>`;
   const p=completion();
   const selected=(actual,value)=>actual===value?"selected":"";
   const applications=S.apps.length?`<div class="application-list">${S.apps.map(a=>`<article class="application-item"><div class="row"><b>${KES(a.amt)} requested</b><span class="badge ${a.status==="APPROVED"?"ok":a.status==="REJECTED"?"bad":""}">${esc(a.status.toLowerCase())}</span></div><div class="row"><span>${a.days} days · ${esc(a.purpose)}</span><span>${a.createdAt?new Date(a.createdAt).toLocaleDateString("en-KE"):"Recently submitted"}</span></div></article>`).join("")}</div>`:`<p style="color:var(--m);margin:0">You have no applications yet. Complete your profile to submit a request.</p>`;
@@ -884,8 +777,7 @@ const dash=()=>{
 <label for="ld">Requested period</label><input id="ld" type="number" min="7" max="90" value="30" inputmode="numeric" required><small class="form-hint">7 to 90 days</small>
 <label for="lp">Purpose</label><select id="lp"><option>Business</option><option>School fees</option><option>Emergency</option><option>Rent</option><option>Other</option></select>
 <div class="err" id="e2" role="alert"></div><button class="btn full">Submit application</button></form>`:`<p style="color:var(--m);margin:0">Save your profile first to unlock application requests.</p>`}</div></div>
-<div class="card dashboard-card mt"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><h3>My applications</h3>${applications}<p class="disclosure account-notice">Application decisions, written loan offers, repayments and M-Pesa disbursements are not available in this preview. A submitted request does not mean you have been approved.</p></div>
-<div class="card dashboard-card mt"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></div><h3>Registration payment</h3>${S.receipt?`<p style="margin:0;color:var(--m)">One-time registration fee <b>${KES(FEE)}</b><br>M-Pesa receipt <span class="stat-pill">${esc(S.receipt.ref)}</span> · ${esc(S.receipt.date)} · <span class="badge ok">Paid</span></p>`:`<p style="margin:0;color:var(--m)" role="status">Payment confirmed. Receipt details are temporarily unavailable.</p>`}</div></div>`};
+<div class="card dashboard-card mt"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><h3>My applications</h3>${applications}<p class="disclosure account-notice">Application decisions, written loan offers, repayments and M-Pesa disbursements are not available in this preview. A submitted request does not mean you have been approved.</p></div></div>`};
 
 function dashM(){
   const editProfile=$("#editProfile");
@@ -923,22 +815,20 @@ function dashM(){
     window.BestLoansStore.saveApplication(application);S.apps.unshift({id:application.id,amt:a,days:d,purpose:application.purpose,status:application.st,createdAt:new Date(application.t).toISOString()});S.notice="Your application request was submitted. It is not a loan offer or approval.";go()};
 }
 
-const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/pay":[pay,payM],"/dash":[dash,dashM]};
+const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/dash":[dash,dashM]};
 function go(){
   const p=location.hash.slice(1)||"/",r=R[p]||R["/"];
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
-  if((p==="/pay"||p==="/otp")&&!S.user){location.hash="#/signup";return}
-  if(p==="/pay"&&S.user&&!S.verified){location.hash="#/otp";return}
-  if(p==="/otp"&&S.verified){location.hash=S.paid?"#/dash":"#/pay";return}
-  if(p==="/pay"&&S.paid){location.hash="#/dash";return}
+  if(p==="/otp"&&!S.user){location.hash="#/signup";return}
+  if(p==="/otp"&&S.verified){location.hash="#/dash";return}
   $("#app").innerHTML=r[0]();r[1]&&r[1]();
-  if(demoMode)$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><div class="demo-notice" role="status"><b>Demo only:</b> accounts, verification, loan applications and payments are simulated. No real money is moved.</div></div>`);
+  if(demoMode)$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><div class="demo-notice" role="status"><b>Demo only:</b> accounts, verification and loan applications are simulated.</div></div>`);
   $("#hb").innerHTML=S.user?`<a class="btn sm" href="#/dash">Dashboard</a> <button class="btn sm line" id="logout">Log out</button>`:`<a class="btn sm" href="#/login" style="background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.4)">Log in</a> <a class="btn sm" href="#/signup">Join</a>`;
   const logoutButton=$("#logout");
   if(logoutButton)logoutButton.onclick=async()=>{
     try{if(!demoMode)await api("/auth/logout",{method:"POST"})}
     catch(error){$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><p class="err" role="alert">${esc(error.message)}</p></div>`);return}
-    S.user=null;S.verified=false;S.paid=false;S.receipt=null;S.profile=null;S.apps=[];S.dashboardError=null;S.profileEditing=false;S.notice=null;
+    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.dashboardError=null;S.profileEditing=false;S.notice=null;
     location.hash="#/";go();
   };
   if(!(p==="/dash"&&document.activeElement&&document.activeElement.id))window.scrollTo(0,0);
@@ -948,7 +838,7 @@ if(demoMode)go();else restoreSession().finally(go);
 if(demoMode&&window.BestLoansStore)window.BestLoansStore.subscribe(data=>{
   if(!S.user)return;
   const user=data.users.find(item=>item.id===S.user.id);
-  if(user){S.paid=!!user.paid;S.profile=user.profile||S.profile}
+  if(user){S.profile=user.profile||S.profile}
   S.apps=data.applications.filter(application=>application.uid===S.user.id).map(application=>({amt:application.amt,days:application.days,purpose:application.purpose,status:application.st}));
   if(location.hash==="#/dash")go();
 });

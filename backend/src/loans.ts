@@ -133,13 +133,13 @@ export function createLoansRouter(express: typeof import("express")) {
       const input = applicationSchema.parse(request.body);
       const user = await prisma.user.findUnique({
         where: { id: request.userId! },
-        select: { registrationPaidAt: true, profile: { select: { userId: true } } }
+        select: { profile: { select: { userId: true } } }
       });
-      if (!user?.registrationPaidAt || !user.profile) {
+      if (!user?.profile) {
         response.status(403).json({
           error: {
             code: "APPLICATION_NOT_READY",
-            message: "Complete your registration and profile before applying."
+            message: "Complete your profile before applying."
           }
         });
         return;

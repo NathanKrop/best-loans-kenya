@@ -9,12 +9,11 @@
       const stored = window.localStorage.getItem(storageKey);
       const data = stored ? JSON.parse(stored) : {};
       return {
-        users: Array.isArray(data.users) ? data.users : [],
-        payments: Array.isArray(data.payments) ? data.payments : [],
+        users: Array.isArray(data.users) ? data.users.map(({ paid, ...user }) => user) : [],
         applications: Array.isArray(data.applications) ? data.applications : []
       };
     } catch {
-      return { users: [], payments: [], applications: [] };
+      return { users: [], applications: [] };
     }
   }
 
@@ -45,10 +44,8 @@
     storageKey,
     getSnapshot,
     getUsers: () => getSnapshot().users,
-    getPayments: () => getSnapshot().payments,
     getApplications: () => getSnapshot().applications,
     saveUser: user => save("users", user),
-    savePayment: payment => save("payments", payment),
     saveApplication: application => save("applications", application),
     subscribe(listener) {
       listeners.add(listener);

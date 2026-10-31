@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Create an account, complete your profile and submit a loan application request online. Review all loan terms before accepting an offer.">
 <meta name="theme-color" content="#0F2A47">
-<title>Best Loans Kenya</title>
+<title>DeniCash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -628,7 +628,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
           <path d="M9 12l2 2 4-4"></path>
         </svg>
       </span>
-      <span>Best <b>Loans</b> Kenya</span>
+      <span>DeniCash</span>
     </a>
     <nav>
       <button onclick="sc('how')">How it works</button>
@@ -641,9 +641,9 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
 <main id="app"></main>
 <footer>
   <div class="w">
-    <h3>Best Loans Kenya</h3>
+    <h3>DeniCash</h3>
     <p class="prelaunch">Company, licensing and contact details must be verified and published before launch.</p>
-    <p>Best Loans Kenya is a prototype. Do not use it to submit real personal or payment information.</p>
+    <p>DeniCash is a prototype. Do not use it to submit real personal or payment information.</p>
     <p>Borrow responsibly: only borrow what you can repay, and late repayment can affect your credit record.</p>
     <p>Terms, Privacy and Refund policies are not yet published. · <a href="../admin/index.html">Admin demo</a></p>
   </div>
@@ -813,8 +813,24 @@ const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><
 <p style="color:var(--m)">Step 2 of ${demoMode?"3":"2"}. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to"} ${esc(S.user?.email||"your email")}.</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
 <form id="f" novalidate><label for="c">6-digit verification code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
+<div class="disclosure" role="note"><b>Identity files:</b> selected locally only. They are not uploaded, saved, or verified, and selecting them does not approve an account or loan.</div>
+<h2 style="font-size:1.2rem;margin-top:24px">Verify Identity</h2>
+<label for="documentType">Choose one identity document</label><select id="documentType"><option value="national-id">National ID</option><option value="passport">Passport</option></select>
+<label for="documentFront">Document front</label><input id="documentFront" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">JPEG, PNG, WebP or PDF; maximum 5 MB.</small>
+<label for="documentBack">Document back</label><input id="documentBack" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">For passports, select the page with your photo and details as the front and the reverse as the back.</small>
+<label for="selfie">Selfie</label><input id="selfie" type="file" accept="image/jpeg,image/png,image/webp" capture="user" required><small class="form-hint">Image only; maximum 5 MB. This demo does not compare the selfie with your document.</small>
 <label for="ph">Phone number (not verified)</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">This number is saved to your account but will not be verified.</small>
 <div class="err" id="e" role="alert"></div><button class="btn full">Verify and continue</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code</button></form></div></div>`;
+function validateIdentityFiles(){
+  for(const [id,label,allowPdf] of [["documentFront","document front",true],["documentBack","document back",true],["selfie","selfie",false]]){
+    const file=$(`#${id}`).files[0];
+    const allowedTypes=allowPdf?["image/jpeg","image/png","image/webp","application/pdf"]:["image/jpeg","image/png","image/webp"];
+    if(!file)return `Select your ${label}.`;
+    if(!allowedTypes.includes(file.type))return `Choose a supported file for your ${label}.`;
+    if(file.size>5*1024*1024)return `Your ${label} must be 5 MB or smaller.`;
+  }
+  return null;
+}
 function otpM(){
   $("#resend").onclick=async()=>{
     const resend=$("#resend");
@@ -829,6 +845,8 @@ function otpM(){
   };
   $("#f").onsubmit=async e=>{e.preventDefault();
   if(!/^\d{6}$/.test($("#c").value))return $("#e").textContent="Enter the 6-digit code from your email.";
+  const fileError=validateIdentityFiles();
+  if(fileError)return $("#e").textContent=fileError;
   const phone=normalizePhone($("#ph").value);
   if(!phone)return $("#e").textContent="Enter a valid Kenyan number, such as 0712345678 or +254712345678.";
   if(!demoMode){
@@ -848,18 +866,13 @@ function otpM(){
 function completion(){return 50+(S.profile?50:0)}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];
 const assurance=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Assurance</h1>
-<p style="color:var(--m)">Add your address and guarantor, then select identity files for this demo.</p>
+<p style="color:var(--m)">Add your county, street address and guarantor details.</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item done"><span>3</span>Assurance</div></div>
-<div class="disclosure" role="note"><b>Demo only:</b> assurance details are not saved. Selected files are not uploaded or retained, and no identity check or loan approval is performed.</div>
+<div class="disclosure" role="note"><b>Demo only:</b> assurance details are not saved. Identity files selected on the Verify step are not uploaded or retained, and no identity check or loan approval is performed.</div>
 <form id="af" novalidate><label for="ac">County</label><select id="ac" required>${counties.map(county=>`<option>${esc(county)}</option>`).join("")}</select>
 <label for="address">Street address</label><input id="address" autocomplete="street-address" maxlength="200" required>
 <label for="guarantor">Guarantor full name</label><input id="guarantor" autocomplete="name" maxlength="100" required>
 <label for="guarantorPhone">Guarantor phone number</label><input id="guarantorPhone" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20" required><small class="form-hint">Use 07…, 01… or the international +254 format.</small>
-<h2 style="font-size:1.2rem;margin-top:24px">Verify Identity</h2>
-<label for="documentType">Choose one identity document</label><select id="documentType"><option value="national-id">National ID</option><option value="passport">Passport</option></select>
-<label for="documentFront">Document front</label><input id="documentFront" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">JPEG, PNG, WebP or PDF; maximum 5 MB.</small>
-<label for="documentBack">Document back</label><input id="documentBack" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">For passports, select the page with your photo and details as the front and the reverse as the back.</small>
-<label for="selfie">Selfie</label><input id="selfie" type="file" accept="image/jpeg,image/png,image/webp" capture="user" required><small class="form-hint">Image only; maximum 5 MB. This demo does not compare the selfie with your document.</small>
 <div class="err" id="ae" role="alert"></div><button class="btn full">Continue to dashboard</button></form></div></div>`;
 function assuranceM(){
   $("#af").onsubmit=e=>{e.preventDefault();
@@ -867,16 +880,9 @@ function assuranceM(){
     if(address.length<3)return $("#ae").textContent="Enter your street address.";
     if(name.length<3)return $("#ae").textContent="Enter your guarantor's full name.";
     if(!phone)return $("#ae").textContent="Enter a valid Kenyan guarantor number, such as 0712345678 or +254712345678.";
-    for(const [id,label,allowPdf] of [["documentFront","document front",true],["documentBack","document back",true],["selfie","selfie",false]]){
-      const file=$(`#${id}`).files[0];
-      const allowedTypes=allowPdf?["image/jpeg","image/png","image/webp","application/pdf"]:["image/jpeg","image/png","image/webp"];
-      if(!file)return $("#ae").textContent=`Select your ${label}.`;
-      if(!allowedTypes.includes(file.type))return $("#ae").textContent=`Choose a supported file for your ${label}.`;
-      if(file.size>5*1024*1024)return $("#ae").textContent=`Your ${label} must be 5 MB or smaller.`;
-    }
-    S.assurance={county:$("#ac").value,address,guarantorName:name,guarantorPhone:phone,documentType:$("#documentType").value,identityStatus:"NOT_VERIFIED"};
+    S.assurance={county:$("#ac").value,address,guarantorName:name,guarantorPhone:phone};
     S.assuranceComplete=true;
-    S.notice="Assurance demo complete. Identity files were not uploaded, saved, or verified.";
+    S.notice="Assurance demo complete. Assurance details were not saved.";
     location.hash="#/dash";
   };
 }

@@ -83,5 +83,5 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
 
 await prisma.$connect();
 app.listen(port, () => {
-  console.log(`Best Loans API listening on port ${port}`);
+  console.log(`DeniCash API listening on port ${port}`);
 });

@@ -165,7 +165,7 @@ async function sendOtp(email: string, code: string): Promise<void> {
     body: JSON.stringify({
       from,
       to: [email],
-      subject: "Your Best Loans Kenya verification code",
+      subject: "Your DeniCash verification code",
       text: `Your verification code is ${code}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`
     })
   });

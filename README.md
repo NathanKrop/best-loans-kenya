@@ -1,6 +1,6 @@
-# Best Loans Kenya
+# DeniCash
 
-A Kenyan loan application prototype with account registration, phone verification, profile capture and loan request storage. Registration is free. The admin panel remains demo only, and the platform is not ready for production lending.
+A Kenyan loan application prototype with account registration, email verification, profile capture and loan request storage. Registration is free. The admin panel remains demo only, and the platform is not ready for production lending.
 
 ## Project structure
 

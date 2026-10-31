@@ -1,0 +1,11 @@
+{
+  "buildCommand": "node scripts/build-static.mjs",
+  "outputDirectory": "dist-site",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/frontend/?demo=1",
+      "permanent": false
+    }
+  ]
+}

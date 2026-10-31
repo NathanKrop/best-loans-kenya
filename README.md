@@ -18,6 +18,10 @@ A Kenyan loan application prototype with account registration, phone verificatio
 
 The API defaults to `http://localhost:3000/api`. Configure SMS delivery through Africa's Talking, or set `DEV_OTP_CODE` for local development; the bypass is disabled in production. The demo OTP accepts any six digits. Demo accounts and loan applications are simulated.
 
+## Deploy the static demo to Vercel
+
+Set the Vercel project's Root Directory to the repository root (`.`). The Vercel build publishes only `frontend/`, `admin/` and `shared/`; the site root redirects to the simulated frontend at `/frontend/?demo=1`. This does not deploy the backend API. All sign-up, verification and loan application activity in demo mode is simulated and must not be used for real customer data or payments.
+
 Do not use the prototype, demo mode or admin demo to collect real customer information or money. Company, licensing, contact and policy details must be verified and published before launch.
 
 ## What remains before this can operate as a loan app

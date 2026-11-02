@@ -20,8 +20,9 @@ import {
 import { ZodError } from "zod";
 import { createAuthRouter, EmailProviderError } from "./auth.js";
 import { prisma } from "./db.js";
-import { InputError } from "./lib/mpesa.js";
+import { ConfigurationError, InputError, MpesaProviderError } from "./lib/mpesa.js";
 import { createLoansRouter } from "./loans.js";
+import { createPaymentsRouter } from "./payments.js";
 import { Prisma } from "@prisma/client";
 
 const app = express();
@@ -49,6 +50,8 @@ app.use(express.json({ limit: "32kb" }));
 app.use("/api/auth", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/auth", createAuthRouter(express));
 app.use("/api", createLoansRouter(express));
+app.use("/api/payments", rateLimit({ windowMs: 60_000, limit: 6, standardHeaders: true, legacyHeaders: false }));
+app.use("/api", createPaymentsRouter(express));
 
 app.get("/health", (_request, response) => {
   response.json({ status: "ok" });
@@ -69,8 +72,16 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
     response.status(400).json({ error: { code: "INVALID_INPUT", message: error.message } });
     return;
   }
+  if (error instanceof ConfigurationError) {
+    response.status(503).json({ error: { code: "MPESA_NOT_CONFIGURED", message: error.message } });
+    return;
+  }
   if (error instanceof EmailProviderError) {
     response.status(502).json({ error: { code: "EMAIL_PROVIDER_ERROR", message: error.message } });
+    return;
+  }
+  if (error instanceof MpesaProviderError) {
+    response.status(502).json({ error: { code: "MPESA_PROVIDER_ERROR", message: error.message } });
     return;
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

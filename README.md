@@ -22,6 +22,12 @@ Registration uses email for account sign-in and email OTP verification. The phon
 
 Loan request limits are age-based: applicants aged 18–25 may request KES 1,000–30,000, while applicants over 25 may request KES 30,000–200,000. These limits validate request amounts only; they do not represent eligibility decisions, offers, or approvals.
 
+## M-Pesa sandbox scaffold
+
+The backend includes a sandbox-only STK test-payment endpoint at `POST /api/payments/sandbox/stk-push`, a callback at `POST /api/payments/mpesa/callback`, and an authenticated status endpoint at `GET /api/payments/sandbox/:paymentId/status`. These routes are disabled by default; enable them only for sandbox testing by setting `MPESA_ENV=sandbox` and `MPESA_SANDBOX_TEST_MODE=true` with valid Daraja sandbox credentials. The STK route accepts test amounts up to KES 1,000 and creates records marked `SANDBOX_TEST`; it is not connected to a loan balance, repayment schedule, or accepted offer. Callback and status-query results are confirmed with Daraja's transaction-query endpoint before updating a payment record.
+
+The callback must be reachable over public HTTPS for Daraja to deliver callbacks. The current demo frontend has no payment interface. No B2C disbursement endpoint exists, and production payments remain unavailable. Do not use this scaffold to collect real payments.
+
 ## Deploy the static demo to Vercel
 
 Set the Vercel project's Root Directory to the repository root (`.`). The Vercel build publishes only `frontend/`, `admin/` and `shared/`; the site root redirects to the simulated frontend at `/frontend/?demo=1`. This does not deploy the backend API. All sign-up, verification and loan application activity in demo mode is simulated and must not be used for real customer data or payments.

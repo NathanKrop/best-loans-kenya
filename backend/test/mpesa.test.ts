@@ -7,6 +7,7 @@ import {
   readMpesaConfig,
   timestampInNairobi
 } from "../src/lib/mpesa.js";
+import { isMpesaSandboxTestEnabled, paymentStatusForMpesaResult } from "../src/payments.js";
 
 const config = {
   environment: "sandbox" as const,
@@ -46,6 +47,19 @@ test("requires HTTPS callback URLs and supported configuration", () => {
     MPESA_PASSKEY: "pass",
     MPESA_CALLBACK_URL: "http://localhost/callback"
   }), /must use HTTPS/);
+});
+
+test("sandbox test payments require both sandbox environment and explicit opt-in", () => {
+  assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "sandbox" }), false);
+  assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "production", MPESA_SANDBOX_TEST_MODE: "true" }), false);
+  assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "sandbox", MPESA_SANDBOX_TEST_MODE: "true" }), true);
+});
+
+test("maps verified Daraja result codes to payment states", () => {
+  assert.equal(paymentStatusForMpesaResult(0), "SUCCESS");
+  assert.equal(paymentStatusForMpesaResult(1032), "CANCELLED");
+  assert.equal(paymentStatusForMpesaResult(1037), "TIMEOUT");
+  assert.equal(paymentStatusForMpesaResult(1), "FAILED");
 });
 
 test("caches the access token and sends a valid STK request", async () => {

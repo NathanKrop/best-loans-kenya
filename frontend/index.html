@@ -101,6 +101,25 @@ header .w {
   gap: 10px;
   letter-spacing: -.02em;
 }
+.brand-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+.brand-word {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.brand-tagline {
+  margin-top: 3px;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #C9F7E5;
+}
 .logo-badge {
   width: 36px;
   height: 36px;
@@ -348,6 +367,7 @@ input[type=range]:focus { box-shadow: none; }
 .btn.secondary:hover { background: rgba(15, 42, 71, .1); color: var(--navy); }
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--err); }
 input[type="checkbox"] { accent-color: var(--emerald); }
+.powered-by { margin-top: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #C9F7E5; }
 footer .prelaunch { font-weight: 700; color: #FDE68A; }
 body.dashboard-mode {
   --navy: #0B1724;
@@ -628,7 +648,10 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
           <path d="M9 12l2 2 4-4"></path>
         </svg>
       </span>
-      <span>DeniCash</span>
+      <span class="brand-stack">
+        <span class="brand-word">DeniCash</span>
+        <span class="brand-tagline">Powered by Devops</span>
+      </span>
     </a>
     <nav>
       <button onclick="sc('how')">How it works</button>
@@ -642,7 +665,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
 <footer>
   <div class="w">
     <h3>DeniCash</h3>
-    <p class="prelaunch">Company, licensing and contact details must be verified and published before launch.</p>
+    <p class="powered-by">Powered by Devops</p>
     <p>DeniCash is a prototype. Do not use it to submit real personal or payment information.</p>
     <p>Borrow responsibly: only borrow what you can repay, and late repayment can affect your credit record.</p>
     <p>Terms, Privacy and Refund policies are not yet published. · <a href="../admin/index.html">Admin demo</a></p>

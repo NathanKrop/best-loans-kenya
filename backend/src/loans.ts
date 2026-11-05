@@ -47,7 +47,7 @@ export function isAtLeastEighteen(dateOfBirth: Date, now = new Date()): boolean 
 
 export function requestedAmountRangeForAge(age: number): { min: number; max: number } | null {
   if (!Number.isInteger(age) || age < 18) return null;
-  return age <= 25 ? { min: 1000, max: 30000 } : { min: 30000, max: 200000 };
+  return age <= 25 ? { min: 10000, max: 30000 } : { min: 30000, max: 200000 };
 }
 
 const applicationSchema = z.object({
@@ -166,7 +166,7 @@ export function createLoansRouter(express: typeof import("express")) {
           error: {
             code: "AMOUNT_OUT_OF_RANGE",
             message: age <= 25
-              ? "Applicants aged 18 to 25 may request between KES 1,000 and KES 30,000."
+              ? "Applicants aged 18 to 25 may request between KES 10,000 and KES 30,000."
               : "Applicants over 25 may request between KES 30,000 and KES 200,000."
           }
         });

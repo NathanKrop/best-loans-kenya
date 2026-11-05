@@ -1,6 +1,6 @@
-# Safaricom Payment Setup Questionnaire
+# Safaricom Payment and Loan Setup Record
 
-Complete the undecided items when the payment details are ready. Do not write Daraja API keys, passwords, or other secrets in this document or send them in chat; configure those privately in the backend environment.
+Do not write Daraja API keys, passwords, or other secrets in this document or send them in chat; configure those privately in the backend environment.
 
 ## Collection destination
 
@@ -10,19 +10,21 @@ Complete the undecided items when the payment details are ready. Do not write Da
 
 ## Customer payment
 
-- Payment purpose: Upfront/application fee
-- Exact fixed fee in KES (enter 0 if variable, undecided, or no fee): Not decided
-- When is it due? After the borrower accepts a written loan offer
-- Refund terms: Not decided
-- If the amount is variable, explain how it is calculated:
-- Any other collection rules or changes:
+- Upfront/application fee: None; do not collect before disbursement
+- Interest: 10% flat total over the full loan term
+- Interest handling: Include in the written offer and scheduled repayment, not as an upfront payment
+- Repayment schedule: Single due date; loan term and exact due date are undecided
 
 ## Borrower payouts
 
 - Send approved loan funds to the borrower's M-Pesa number? Yes
-- Payout condition: Only after manual approval and borrower acceptance of a complete written offer
-- Any other payout rules:
+- Review: Manual admin assessment; no guaranteed approval
+- Amounts for ages 18–25: Requests from KES 10,000 to KES 30,000
+- Amounts over age 25: Requests from KES 30,000 to KES 200,000; admin assessment required
+- Random loan amounts: Not supported; any offer must name an exact amount and disclose full terms
+- Payout timing: 72-hour processing estimate only after final manual approval, borrower acceptance of a written offer and required checks; not a guarantee
+- Owner-admin email: Configure privately in deployment settings when admin access is implemented
 
 ## Readiness
 
-Live payments are not enabled. The Till number, fee amount, refund terms, live Daraja configuration, loan approval/offer-acceptance flow, and payout capability must be completed and tested before collecting customer money or sending loan funds.
+The Till number is recorded, but live collection and payouts remain disabled. The loan term, full repayment dates, owner-admin decision interface and API, written-offer acceptance, and secure M-Pesa payout capability must be implemented and tested before lending. Production also requires the applicable legal/licensing review, live Daraja configuration and operational reconciliation.

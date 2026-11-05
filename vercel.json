@@ -1,10 +1,9 @@
 {
-  "buildCommand": "node scripts/build-static.mjs",
-  "outputDirectory": "dist-site",
+  "buildCommand": "npm run build",
   "redirects": [
     {
       "source": "/",
-      "destination": "/frontend/?demo=1",
+      "destination": "/frontend/",
       "permanent": false
     }
   ]

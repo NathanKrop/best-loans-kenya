@@ -5,7 +5,7 @@ Complete the undecided items when the payment details are ready. Do not write Da
 ## Collection destination
 
 - Safaricom channel: Till (Buy Goods)
-- Till number: To be provided
+- Till number: 3584917
 - If changing to PayBill, provide the PayBill number and account-reference format:
 
 ## Customer payment

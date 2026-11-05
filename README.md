@@ -18,7 +18,7 @@ A Kenyan loan application prototype with account registration, email verificatio
 
 The API defaults to `http://localhost:3000/api`. Email OTP delivery uses Resend; configure `RESEND_API_KEY` and `EMAIL_FROM` in `backend/.env`. For local development, set `DEV_OTP_CODE` to use a fixed code without sending email; this bypass is disabled in production. The demo OTP accepts any six digits. Demo accounts and loan applications are simulated. The demo assurance step accepts local file selections only: assurance details are not saved; identity images are not uploaded, retained, or verified; and selecting files never approves an account or loan. Do not enter real personal information.
 
-Registration uses email for account sign-in and email OTP verification. The phone number is collected on the verification step and stored without phone verification. Run `npm run db:deploy` from `backend/` after configuring the database to apply the email-registration migration.
+Registration uses email for account sign-in and email OTP verification. An unverified account that signs in is returned to the email confirmation step, where it can request another code. The phone number is collected on the verification step and stored without phone verification. Run `npm run db:deploy` from `backend/` after configuring the database to apply the email-registration migration.
 
 Loan request limits are age-based: applicants aged 18–25 may request KES 1,000–30,000, while applicants over 25 may request KES 30,000–200,000. These limits validate request amounts only; they do not represent eligibility decisions, offers, or approvals.
 
@@ -26,7 +26,7 @@ Loan request limits are age-based: applicants aged 18–25 may request KES 1,000
 
 The backend includes a sandbox-only STK test-payment endpoint at `POST /api/payments/sandbox/stk-push`, a callback at `POST /api/payments/mpesa/callback`, and an authenticated status endpoint at `GET /api/payments/sandbox/:paymentId/status`. These routes are disabled by default; enable them only for sandbox testing by setting `MPESA_ENV=sandbox` and `MPESA_SANDBOX_TEST_MODE=true` with valid Daraja sandbox credentials. The STK route accepts test amounts up to KES 1,000 and creates records marked `SANDBOX_TEST`; it is not connected to a loan balance, repayment schedule, or accepted offer. Callback and status-query results are confirmed with Daraja's transaction-query endpoint before updating a payment record.
 
-The callback must be reachable over public HTTPS for Daraja to deliver callbacks. The current demo frontend has no payment interface. No B2C disbursement endpoint exists, and production payments remain unavailable. Do not use this scaffold to collect real payments.
+The callback must be reachable over public HTTPS for Daraja to deliver callbacks. The current demo frontend has no payment interface. Customer deposits/upfront fees and borrower payouts are not enabled; no B2C disbursement endpoint exists, and production payments remain unavailable. Do not use this scaffold to collect real payments.
 
 ## Deploy the static demo to Vercel
 

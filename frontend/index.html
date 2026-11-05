@@ -821,7 +821,15 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const email=$("#
       setCurrentUser(user);S.profile=null;S.apps=[];
       try{await loadDashboardData()}catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
       location.hash="#/dash";
-    }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Log in"}
+    }catch(error){
+      if(error.code==="ACCOUNT_NOT_READY"){
+        S.user={id:null,name:"Member",email,phone:null};
+        S.verified=false;
+        location.hash="#/otp";
+        return;
+      }
+      $("#e").textContent=error.message;button.disabled=false;button.textContent="Log in"
+    }
     return;
   }
   const saved=window.BestLoansStore.getUsers().find(user=>user.email?.toLowerCase()===email);
@@ -833,27 +841,11 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const email=$("#
   location.hash="#/dash"}}
 
 const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of ${demoMode?"3":"2"}</span><h1 style="font-size:2rem">Verify your email</h1>
-<p style="color:var(--m)">Step 2 of ${demoMode?"3":"2"}. ${demoMode?"Demo: enter any 6 digits.":"Enter the 6-digit code sent to"} ${esc(S.user?.email||"your email")}.</p>
+<p style="color:var(--m)">${demoMode?`Demo mode: enter any six digits. No email will be sent.`:`A 6-digit confirmation code was sent to ${esc(S.user?.email||"your email")}. Check your inbox or spam folder.`}</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div>${demoMode?`<div class="step-item"><span>3</span>Assurance</div>`:""}</div>
-<form id="f" novalidate><label for="c">6-digit verification code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
-<div class="disclosure" role="note"><b>Identity files:</b> selected locally only. They are not uploaded, saved, or verified, and selecting them does not approve an account or loan.</div>
-<h2 style="font-size:1.2rem;margin-top:24px">Verify Identity</h2>
-<label for="documentType">Choose one identity document</label><select id="documentType"><option value="national-id">National ID</option><option value="passport">Passport</option></select>
-<label for="documentFront">Document front</label><input id="documentFront" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">JPEG, PNG, WebP or PDF; maximum 5 MB.</small>
-<label for="documentBack">Document back</label><input id="documentBack" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required><small class="form-hint">For passports, select the page with your photo and details as the front and the reverse as the back.</small>
-<label for="selfie">Selfie</label><input id="selfie" type="file" accept="image/jpeg,image/png,image/webp" capture="user" required><small class="form-hint">Image only; maximum 5 MB. This demo does not compare the selfie with your document.</small>
+<form id="f" novalidate><label for="c">6-digit email confirmation code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
 <label for="ph">Phone number (not verified)</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">This number is saved to your account but will not be verified.</small>
-<div class="err" id="e" role="alert"></div><button class="btn full">Verify and continue</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code</button></form></div></div>`;
-function validateIdentityFiles(){
-  for(const [id,label,allowPdf] of [["documentFront","document front",true],["documentBack","document back",true],["selfie","selfie",false]]){
-    const file=$(`#${id}`).files[0];
-    const allowedTypes=allowPdf?["image/jpeg","image/png","image/webp","application/pdf"]:["image/jpeg","image/png","image/webp"];
-    if(!file)return `Select your ${label}.`;
-    if(!allowedTypes.includes(file.type))return `Choose a supported file for your ${label}.`;
-    if(file.size>5*1024*1024)return `Your ${label} must be 5 MB or smaller.`;
-  }
-  return null;
-}
+<div class="err" id="e" role="alert"></div><button class="btn full">Confirm email</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code to email</button></form></div></div>`;
 function otpM(){
   $("#resend").onclick=async()=>{
     const resend=$("#resend");
@@ -868,8 +860,6 @@ function otpM(){
   };
   $("#f").onsubmit=async e=>{e.preventDefault();
   if(!/^\d{6}$/.test($("#c").value))return $("#e").textContent="Enter the 6-digit code from your email.";
-  const fileError=validateIdentityFiles();
-  if(fileError)return $("#e").textContent=fileError;
   const phone=normalizePhone($("#ph").value);
   if(!phone)return $("#e").textContent="Enter a valid Kenyan number, such as 0712345678 or +254712345678.";
   if(!demoMode){
@@ -887,6 +877,10 @@ function otpM(){
   S.user.phone=phone;S.verified=true;location.hash="#/assurance"}}
 
 function completion(){return 50+(S.profile?50:0)}
+function applicationSubmittedNotice(){
+  const firstName=S.user.name.trim().split(/\s+/)[0];
+  S.notice=`Congratulations, ${firstName}! Your loan application request was submitted. It is not a loan offer or approval.`;
+}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];
 const assurance=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Assurance</h1>
 <p style="color:var(--m)">Add your county, street address and guarantor details.</p>
@@ -976,12 +970,12 @@ function dashM(){
     if(!demoMode){
       const button=lf.querySelector("button");button.disabled=true;button.textContent="Submitting…";
       api("/loans/apply",{method:"POST",body:JSON.stringify({amount:a,periodDays:d,purpose:$("#lp").value})})
-        .then(application=>{S.apps.unshift({id:application.id,amt:application.amount,days:application.periodDays,purpose:application.purpose,status:application.status,createdAt:application.createdAt});S.dashboardError=null;S.notice="Your application request was submitted. It is not a loan offer or approval.";go()})
+        .then(application=>{S.apps.unshift({id:application.id,amt:application.amount,days:application.periodDays,purpose:application.purpose,status:application.status,createdAt:application.createdAt});S.dashboardError=null;applicationSubmittedNotice();go()})
         .catch(error=>{$("#e2").textContent=error.message;button.disabled=false;button.textContent="Submit application"});
       return;
     }
     const application={id:"app-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),uid:S.user.id,amt:a,days:d,purpose:$("#lp").value,st:"PENDING",t:Date.now(),note:""};
-    window.BestLoansStore.saveApplication(application);S.apps.unshift({id:application.id,amt:a,days:d,purpose:application.purpose,status:application.st,createdAt:new Date(application.t).toISOString()});S.notice="Your application request was submitted. It is not a loan offer or approval.";go()};
+    window.BestLoansStore.saveApplication(application);S.apps.unshift({id:application.id,amt:a,days:d,purpose:application.purpose,status:application.st,createdAt:new Date(application.t).toISOString()});applicationSubmittedNotice();go()};
 }
 
 const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM]};

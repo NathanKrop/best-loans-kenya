@@ -1,12 +1,11 @@
 # DeniCash
 
-A Kenyan loan-application app with account registration, email verification, profile capture and loan-request storage. Registration is free. The current backend supports these account and request flows when configured; owner-admin decisions, written offers, repayment schedules and live payments/disbursements are not implemented. Do not collect customer money or promise a loan through this app.
+A Kenyan loan-application app with account registration, email verification, profile capture and loan-request storage. The customer site uses the configured backend; it has no browser-local mock account or application mode. Registration is free. The backend includes a sandbox-only manual offer and M-Pesa workflow; production lending, disbursements and collections are not enabled.
 
 ## Project structure
 
-- `frontend/index.html`: public site and customer account flow; add `?demo=1` for explicit browser-local mock data.
-- `admin/index.html`: demo admin panel.
-- `shared/demo-store.js`: browser-local mock data shared by public and admin pages.
+- `frontend/index.html`: public site and API-backed customer account flow.
+- `admin/index.html`: status page; application decisions are currently available through the authenticated sandbox API only.
 - `backend/`: Node API and PostgreSQL schema.
 
 ## Run locally
@@ -14,36 +13,44 @@ A Kenyan loan-application app with account registration, email verification, pro
 1. Copy `backend/.env.example` to `backend/.env` and set database and secret values.
 2. From `backend/`, run `docker compose up -d`, `npm install`, `npm run db:generate`, `npm run db:migrate`, then `npm run dev`.
 3. From the project root, run `python -m http.server 8000`.
-4. Open `http://localhost:8000/frontend/` for the API-backed flow, `http://localhost:8000/frontend/?demo=1` for mock mode, or `http://localhost:8000/admin/` for the admin demo.
+4. Open `http://localhost:8000/frontend/` for the customer site. Admin review is available through the authenticated sandbox API only.
 
-The API defaults to `http://localhost:3000/api` in local development and uses the same-origin `/api` path on the Vercel deployment. Email OTP delivery uses Resend; configure `RESEND_API_KEY` and `EMAIL_FROM` in the backend environment. For local development, set `DEV_OTP_CODE` to use a fixed code without sending email; this bypass is disabled in production. The demo OTP accepts any six digits. Demo accounts and loan applications are simulated. The demo assurance step accepts local file selections only: assurance details are not saved; identity images are not uploaded, retained, or verified; and selecting files never approves an account or loan. Do not enter real personal information.
+The API defaults to `http://localhost:3000/api` in local development and uses the same-origin `/api` path on the Vercel deployment. Email OTP delivery uses Resend; configure `RESEND_API_KEY` and `EMAIL_FROM` in the backend environment with a verified sender domain. For local development, set `DEV_OTP_CODE` to use a fixed code without sending email; this bypass is disabled in production.
 
 Registration uses email for account sign-in and email OTP verification. An unverified account that signs in is returned to the email confirmation step, where it can request another code. The phone number is collected on the verification step and stored without phone verification. Run `npm run db:deploy` from `backend/` after configuring the database to apply the email-registration migration.
 
-Loan request limits are age-based: applicants aged 18–25 may request KES 10,000–30,000, while applicants over 25 may request KES 30,000–200,000. These are request limits only; they do not represent eligibility decisions, offers, or approvals. The proposed flat 10% total interest is not currently a loan offer: loan term and repayment dates are undecided. Loan amounts must not be assigned randomly; any future amount must be assessed and included in a specific written offer.
+Loan request limits are age-based: applicants aged 18–25 may request KES 10,000–30,000, while applicants over 25 may request KES 30,000–200,000. These are request limits only; they do not represent eligibility decisions, offers, or approvals. The sandbox workflow calculates 10% flat interest for a written offer and sets the due date to the requested term after confirmed disbursement. Loan amounts must not be assigned randomly; the approved amount must be assessed and included in the specific written offer.
 
-## M-Pesa sandbox scaffold
+## M-Pesa sandbox test flow
 
-The backend includes a sandbox-only STK test-payment endpoint at `POST /api/payments/sandbox/stk-push`, a callback at `POST /api/payments/mpesa/callback`, and an authenticated status endpoint at `GET /api/payments/sandbox/:paymentId/status`. These routes are disabled by default; enable them only for sandbox testing by setting `MPESA_ENV=sandbox` and `MPESA_SANDBOX_TEST_MODE=true` with valid Daraja sandbox credentials. The STK route accepts test amounts up to KES 1,000 and creates records marked `SANDBOX_TEST`; it is not connected to a loan balance, repayment schedule, or accepted offer. Callback and status-query results are confirmed with Daraja's transaction-query endpoint before updating a payment record.
+The backend includes a sandbox-only STK test-payment endpoint at `POST /api/payments/sandbox/stk-push`, a callback at `POST /api/payments/mpesa/callback`, and authenticated list/status endpoints at `GET /api/payments/sandbox/me` and `GET /api/payments/sandbox/:paymentId/status`. These routes are disabled by default; enable them only for sandbox testing by setting `MPESA_ENV=sandbox` and `MPESA_SANDBOX_TEST_MODE=true` with valid Daraja sandbox credentials and a publicly reachable HTTPS callback URL. The STK route accepts test amounts up to KES 1,000 and creates records marked `SANDBOX_TEST`; it is not connected to a loan balance, repayment schedule, or accepted offer. Callback and status-query results are confirmed with Daraja's transaction-query endpoint before updating a payment record. Requests require a signed-in customer session.
 
-The callback must be reachable over public HTTPS for Daraja to deliver callbacks. Customer deposits/upfront fees and borrower payouts are not enabled; no B2C disbursement endpoint exists, and production payments remain unavailable. The Till is configured as a Buy Goods destination in the example environment, but that does not enable collection. Do not use this scaffold to collect real payments.
+The callbacks must be reachable over public HTTPS for Daraja to deliver them. The Till is configured as a Buy Goods destination in the example environment, but that does not enable collection. Production payments remain unavailable. Do not use this test flow to collect or disburse real funds.
+
+## Sandbox loan offer lifecycle
+
+The sandbox workflow is opt-in and fails closed unless `MPESA_ENV=sandbox`, `MPESA_SANDBOX_TEST_MODE=true`, and `LOAN_WORKFLOW_SANDBOX_MODE=true`. It provides authenticated customer offer, acceptance, test disbursement and repayment routes, plus admin review routes. Configure `ADMIN_EMAILS` as a comma-separated allowlist of already registered, email-verified operator accounts. Protect the Daraja callback URLs with a long random `MPESA_CALLBACK_TOKEN`; use the same token in the configured HTTPS callback URLs. B2C disbursement additionally requires Daraja sandbox initiator credentials and a sandbox `MPESA_SECURITY_CREDENTIAL`.
+
+An operator can review pending applications with `GET /api/admin/loan-applications`, issue a written 10% flat-interest offer with `POST /api/admin/loan-applications/:applicationId/offer`, or reject an application with `POST /api/admin/loan-applications/:applicationId/reject`. Customers can view offers with `GET /api/loans/offers/me`, accept one to request sandbox B2C disbursement, and request repayment by STK push only after disbursement is confirmed. The customer dashboard displays the offer terms, due date, pending status and a congratulations page only after a successful sandbox disbursement callback with matching amount and receipt. Repayment is marked complete only after the STK status query confirms success. No interest is requested before disbursement.
+
+This workflow is not suitable for real lending or money movement. It has no production approval authorization model, manual reconciliation tools, robust settlement reconciliation, or legal/compliance review. Do not set production Daraja credentials for these endpoints, and do not describe sandbox results as real funds.
 
 ## Deploy the app to Vercel
 
-Set the Vercel project's Root Directory to the repository root (`.`). The Vercel build uses the root `index.mts` Express entry point for the API, and publishes `frontend/`, `admin/` and `shared/` as static assets. The site root redirects to `/frontend/` (API mode); demo mode is available only when explicitly opened with `?demo=1`.
+Set the Vercel project's Root Directory to the repository root (`.`). The Vercel build uses the root `index.mts` Express entry point for the API, and publishes `frontend/` and `admin/` as static assets. The site root redirects to `/frontend/`.
 
-Before deploying, provision Supabase PostgreSQL, apply the migrations with `npm run db:deploy` from `backend/`, and configure Vercel environment variables: `DATABASE_URL`, `JWT_SECRET`, `OTP_HASH_SECRET`, `NATIONAL_ID_ENCRYPTION_KEY`, `FRONTEND_ORIGIN=https://www.denicash.com`, `RESEND_API_KEY`, and `EMAIL_FROM`. Use the Supabase connection settings appropriate for serverless deployments. Keep credentials private and set them in Vercel, not in source control. Configure the live email sender/domain with Resend. The API and account/application paths will not work until required environment variables, database and migrations are ready.
+Before deploying, provision Supabase PostgreSQL. Configure `DATABASE_URL` with Supabase's transaction-pooler connection string (port 6543, with `pgbouncer=true`) and `DIRECT_URL` with its session-pooler/direct connection string for Prisma migrations. Then apply the migrations with `npm run db:deploy` from `backend/`. Configure `JWT_SECRET`, `OTP_HASH_SECRET`, `NATIONAL_ID_ENCRYPTION_KEY`, `FRONTEND_ORIGIN=https://www.denicash.com`, `RESEND_API_KEY`, and `EMAIL_FROM` as Vercel environment variables. Keep credentials private and set them in Vercel, not in source control. Configure a verified email sender/domain with Resend. The API and account/application paths will not work until required environment variables, database and migrations are ready.
 
-This deployment does not make the app ready to lend. The admin review interface and secure admin decision API, affordability assessment, written offers, repayment term and schedule, receipts, reconciliation and M-Pesa borrower payouts still need implementation and review. Live collection and disbursement remain disabled.
+This deployment does not make the app ready to lend. The sandbox API workflow does not provide production admin tooling, affordability assessment, manual exceptions, settlement reconciliation, compliant written-offer acceptance, customer receipts or production M-Pesa payouts. Live collection and disbursement remain disabled.
 
-Do not use the prototype, demo mode or admin demo to collect real customer information or money. Company, licensing, contact and policy details must be verified and published before launch.
+Do not use this app to collect real customer money. Company, licensing, contact and policy details must be verified and published before launch.
 
 ## What remains before this can operate as a loan app
 
 - Complete the customer-facing terms, privacy notice, consent and company/licensing/contact details.
-- Complete the affordability assessment, underwriting, decisioning, written offers, borrower acceptance and auditable decision records.
-- Implement compliant loan disbursement, repayment schedules, collections, reconciliation, customer receipts and support processes.
-- Connect the admin panel to authenticated backend APIs with roles, audit trails and operational monitoring.
+- Complete the affordability assessment, underwriting, production decisioning, borrower acceptance and auditable decision records.
+- Implement compliant production loan disbursement, repayment schedules, collections, reconciliation, customer receipts and support processes.
+- Build an operational admin panel for the authenticated sandbox review APIs and extend its access controls, audit trails and monitoring before any production use.
 - Complete security, data-protection, backup, incident-response and production deployment work, then validate the end-to-end flow.
 - Obtain legal advice on applicable Kenyan digital-credit licensing and data-protection obligations, and confirm the operating model with relevant authorities.
 

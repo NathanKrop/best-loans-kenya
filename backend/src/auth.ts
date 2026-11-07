@@ -3,13 +3,12 @@ import { promisify } from "node:util";
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { sendVerificationEmail } from "./lib/email.js";
 import { ConfigurationError, normalizeKenyanPhone } from "./lib/mpesa.js";
 
 const scrypt = promisify(scryptCallback);
 const ACCESS_COOKIE = "blk_access";
 const accessLifetimeSeconds = 15 * 60;
-
-export class EmailProviderError extends Error {}
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -117,6 +116,52 @@ export async function requireUser(
   }
 }
 
+export async function requireAdmin(
+  request: AuthenticatedRequest,
+  response: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const bearer = request.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const userId = verifyAccessToken(bearer || requestCookie(request, ACCESS_COOKIE) || "");
+    if (!userId) {
+      response.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Please sign in again." } });
+      return;
+    }
+
+    const allowedEmails = new Set(
+      (process.env.ADMIN_EMAILS || "")
+        .split(",")
+        .map(email => email.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    if (!allowedEmails.size) {
+      response.status(503).json({
+        error: { code: "ADMIN_ACCESS_NOT_CONFIGURED", message: "Admin access is not configured." }
+      });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, emailVerifiedAt: true, status: true }
+    });
+    if (
+      !user ||
+      user.status !== "ACTIVE" ||
+      !user.email ||
+      !user.emailVerifiedAt ||
+      !allowedEmails.has(user.email.toLowerCase())
+    ) {
+      response.status(403).json({ error: { code: "ADMIN_ACCESS_REQUIRED", message: "Admin access is required." } });
+      return;
+    }
+    request.userId = user.id;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const key = await scrypt(password, salt, 64) as Buffer;
@@ -144,34 +189,6 @@ function createOtpCode(): string {
     return configuredCode;
   }
   return String(randomBytes(4).readUInt32BE(0) % 1_000_000).padStart(6, "0");
-}
-
-async function sendOtp(email: string, code: string): Promise<void> {
-  if (process.env.NODE_ENV !== "production" && process.env.DEV_OTP_CODE) return;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    throw new EmailProviderError("Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM.");
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    signal: AbortSignal.timeout(10_000),
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Your DeniCash verification code",
-      text: `Your verification code is ${code}. It expires in 5 minutes. If you did not request this code, you can ignore this email.`
-    })
-  });
-  if (!response.ok) {
-    throw new EmailProviderError("Email provider could not deliver the verification code.");
-  }
 }
 
 const registerSchema = z.object({
@@ -214,7 +231,7 @@ export function createAuthRouter(express: typeof import("express")) {
         await prisma.otpCode.create({
           data: { userId: user.id, purpose: "VERIFY_EMAIL", codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
         });
-        await sendOtp(input.email, code);
+        await sendVerificationEmail(input.email, code);
       } catch (error) {
         await prisma.user.delete({ where: { id: user.id } });
         throw error;
@@ -255,7 +272,7 @@ export function createAuthRouter(express: typeof import("express")) {
           data: { userId: user.id, purpose: "VERIFY_EMAIL", codeHash: hashOtp(code), expiresAt: new Date(Date.now() + 5 * 60_000) }
         })
       ]);
-      await sendOtp(input.email, code);
+      await sendVerificationEmail(input.email, code);
       response.json({ data: { message: "Verification code sent." } });
     } catch (error) {
       next(error);

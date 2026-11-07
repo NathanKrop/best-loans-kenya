@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 export type MpesaEnvironment = "sandbox" | "production";
 
 export class InputError extends Error {}
@@ -5,6 +7,14 @@ export class InputError extends Error {}
 export class ConfigurationError extends Error {}
 
 export class MpesaProviderError extends Error {}
+
+export function validMpesaCallbackToken(supplied: string | undefined, env: NodeJS.ProcessEnv = process.env): boolean {
+  const expected = env.MPESA_CALLBACK_TOKEN || "";
+  if (!expected || !supplied) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(supplied);
+  return expectedBuffer.length === suppliedBuffer.length && timingSafeEqual(expectedBuffer, suppliedBuffer);
+}
 
 export interface MpesaConfig {
   environment: MpesaEnvironment;
@@ -38,6 +48,20 @@ export interface StkQueryResponse {
   CheckoutRequestID: string;
   ResultCode?: string;
   ResultDesc?: string;
+}
+
+export interface B2cConfig {
+  initiatorName: string;
+  securityCredential: string;
+  resultUrl: string;
+  timeoutUrl: string;
+}
+
+export interface B2cResponse {
+  ConversationID: string;
+  OriginatorConversationID: string;
+  ResponseCode: string;
+  ResponseDescription: string;
 }
 
 type FetchLike = typeof fetch;
@@ -116,6 +140,39 @@ export function readMpesaConfig(env: NodeJS.ProcessEnv = process.env): MpesaConf
     passkey: env.MPESA_PASSKEY!,
     callbackUrl: callback.toString(),
     transactionType
+  };
+}
+
+export function readB2cConfig(env: NodeJS.ProcessEnv = process.env): B2cConfig {
+  const required: Array<[keyof B2cConfig, string | undefined]> = [
+    ["initiatorName", env.MPESA_INITIATOR_NAME],
+    ["securityCredential", env.MPESA_SECURITY_CREDENTIAL],
+    ["resultUrl", env.MPESA_B2C_RESULT_URL],
+    ["timeoutUrl", env.MPESA_B2C_TIMEOUT_URL]
+  ];
+  const missing = required.filter(([, value]) => !value?.trim()).map(([key]) => key);
+  if (missing.length) {
+    throw new ConfigurationError(`Missing M-Pesa B2C configuration: ${missing.join(", ")}.`);
+  }
+  for (const [name, value] of [
+    ["MPESA_B2C_RESULT_URL", env.MPESA_B2C_RESULT_URL],
+    ["MPESA_B2C_TIMEOUT_URL", env.MPESA_B2C_TIMEOUT_URL]
+  ] as const) {
+    let callback: URL;
+    try {
+      callback = new URL(value!);
+    } catch {
+      throw new ConfigurationError(`${name} must be a valid HTTPS URL.`);
+    }
+    if (callback.protocol !== "https:") {
+      throw new ConfigurationError(`${name} must use HTTPS.`);
+    }
+  }
+  return {
+    initiatorName: env.MPESA_INITIATOR_NAME!,
+    securityCredential: env.MPESA_SECURITY_CREDENTIAL!,
+    resultUrl: env.MPESA_B2C_RESULT_URL!,
+    timeoutUrl: env.MPESA_B2C_TIMEOUT_URL!
   };
 }
 
@@ -212,6 +269,60 @@ export class MpesaClient {
       ResponseCode: body.ResponseCode,
       ResponseDescription: body.ResponseDescription,
       CustomerMessage: body.CustomerMessage
+    };
+  }
+
+  async initiateB2c(
+    request: { phone: string; amount: number; occasion: string },
+    b2c: B2cConfig
+  ): Promise<B2cResponse> {
+    const phone = normalizeKenyanPhone(request.phone);
+    if (!Number.isSafeInteger(request.amount) || request.amount < 1) {
+      throw new InputError("The payment amount must be a positive whole number.");
+    }
+    if (!request.occasion.trim() || request.occasion.length > 100) {
+      throw new InputError("The payment occasion is invalid.");
+    }
+
+    const response = await this.fetcher(
+      `${this.baseUrl}/mpesa/b2c/v1/paymentrequest`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await this.accessToken()}`,
+          "Content-Type": "application/json"
+        },
+        signal: AbortSignal.timeout(10_000),
+        body: JSON.stringify({
+          InitiatorName: b2c.initiatorName,
+          SecurityCredential: b2c.securityCredential,
+          CommandID: "BusinessPayment",
+          Amount: request.amount,
+          PartyA: this.config.shortcode,
+          PartyB: phone,
+          Remarks: "Loan disbursement",
+          QueueTimeOutURL: b2c.timeoutUrl,
+          ResultURL: b2c.resultUrl,
+          Occasion: request.occasion
+        })
+      }
+    );
+    const body = await readJson(response);
+    if (
+      !response.ok ||
+      typeof body.ConversationID !== "string" ||
+      typeof body.OriginatorConversationID !== "string" ||
+      typeof body.ResponseCode !== "string" ||
+      typeof body.ResponseDescription !== "string" ||
+      body.ResponseCode !== "0"
+    ) {
+      throw new MpesaProviderError("Safaricom could not initiate the sandbox disbursement.");
+    }
+    return {
+      ConversationID: body.ConversationID,
+      OriginatorConversationID: body.OriginatorConversationID,
+      ResponseCode: body.ResponseCode,
+      ResponseDescription: body.ResponseDescription
     };
   }
 

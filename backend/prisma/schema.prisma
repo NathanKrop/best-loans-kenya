@@ -2,9 +2,46 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model LoanOffer {
+  id                 String          @id @default(uuid()) @db.Uuid
+  applicationId      String          @unique @db.Uuid
+  application        LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  approvedAmount     Int
+  interestBasisPoints Int            @default(1000)
+  interestAmount     Int
+  repaymentAmount    Int
+  termDays           Int
+  status             LoanOfferStatus @default(OFFERED)
+  note               String
+  offeredByUserId    String          @db.Uuid
+  offeredBy          User            @relation(fields: [offeredByUserId], references: [id], onDelete: Restrict)
+  acceptedAt         DateTime?
+  disbursedAt        DateTime?
+  dueAt              DateTime?
+  repaidAt           DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  payments Payment[]
+}
+
+model LoanAuditLog {
+  id                String          @id @default(uuid()) @db.Uuid
+  applicationId     String          @db.Uuid
+  application       LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actorUserId       String          @db.Uuid
+  actor             User            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  action            String
+  note              String
+  createdAt         DateTime        @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserStatus {
@@ -41,6 +78,8 @@ model User {
   otpCodes           OtpCode[]
   profile            Profile?
   loanApplications    LoanApplication[]
+  offersMade          LoanOffer[]
+  auditActions        LoanAuditLog[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -62,8 +101,18 @@ model Profile {
 
 enum LoanApplicationStatus {
   PENDING
+  OFFERED
   APPROVED
   REJECTED
+}
+
+enum LoanOfferStatus {
+  OFFERED
+  DECLINED
+  DISBURSEMENT_PENDING
+  DISBURSEMENT_FAILED
+  ACTIVE
+  REPAID
 }
 
 model LoanApplication {
@@ -74,6 +123,8 @@ model LoanApplication {
   periodDays  Int
   purpose     String
   status      LoanApplicationStatus   @default(PENDING)
+  offer       LoanOffer?
+  auditLogs   LoanAuditLog[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
 
@@ -99,6 +150,8 @@ model Payment {
   id                 String        @id @default(uuid()) @db.Uuid
   userId             String        @db.Uuid
   user               User          @relation(fields: [userId], references: [id])
+  loanOfferId        String?       @db.Uuid
+  loanOffer          LoanOffer?    @relation(fields: [loanOfferId], references: [id], onDelete: Restrict)
   pendingKey         String?       @unique
   purpose            String        @default("REGISTRATION_FEE")
   amount             Int
@@ -115,5 +168,6 @@ model Payment {
   updatedAt          DateTime      @updatedAt
 
   @@index([userId, status])
+  @@index([loanOfferId, purpose, status])
   @@index([status, createdAt])
 }

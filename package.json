@@ -8,7 +8,7 @@
     "build": "npm run db:generate && npm run backend:build && node scripts/build-static.mjs",
     "backend:build": "tsc -p backend/tsconfig.json",
     "db:generate": "prisma generate --schema backend/prisma/schema.prisma",
-    "test": "npm --prefix backend test && node --test shared/demo-store.test.js"
+    "test": "npm --prefix backend test"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

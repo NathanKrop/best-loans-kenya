@@ -7,10 +7,11 @@ const outputDirectory = join(projectRoot, "dist-site");
 const publicDirectory = join(projectRoot, "public");
 
 await rm(outputDirectory, { recursive: true, force: true });
+await rm(join(publicDirectory, "shared"), { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
 await mkdir(publicDirectory, { recursive: true });
 
-for (const directory of ["frontend", "admin", "shared"]) {
+for (const directory of ["frontend", "admin"]) {
   await cp(join(projectRoot, directory), join(outputDirectory, directory), {
     recursive: true
   });

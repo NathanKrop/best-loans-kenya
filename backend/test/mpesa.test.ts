@@ -4,8 +4,10 @@ import {
   createStkPassword,
   MpesaClient,
   normalizeKenyanPhone,
+  readB2cConfig,
   readMpesaConfig,
-  timestampInNairobi
+  timestampInNairobi,
+  validMpesaCallbackToken
 } from "../src/lib/mpesa.js";
 import { isMpesaSandboxTestEnabled, paymentStatusForMpesaResult } from "../src/payments.js";
 
@@ -49,6 +51,34 @@ test("requires HTTPS callback URLs and supported configuration", () => {
   }), /must use HTTPS/);
 });
 
+test("authenticates payment callbacks with the configured shared token", () => {
+  const env = { MPESA_CALLBACK_TOKEN: "private-callback-token" };
+  assert.equal(validMpesaCallbackToken("private-callback-token", env), true);
+  assert.equal(validMpesaCallbackToken("wrong-token", env), false);
+  assert.equal(validMpesaCallbackToken(undefined, env), false);
+  assert.equal(validMpesaCallbackToken("private-callback-token", {}), false);
+});
+
+test("requires HTTPS result and timeout callbacks for sandbox disbursements", () => {
+  assert.throws(() => readB2cConfig({
+    MPESA_INITIATOR_NAME: "initiator",
+    MPESA_SECURITY_CREDENTIAL: "credential",
+    MPESA_B2C_RESULT_URL: "http://example.test/result",
+    MPESA_B2C_TIMEOUT_URL: "https://example.test/timeout"
+  }), /MPESA_B2C_RESULT_URL must use HTTPS/);
+  assert.deepEqual(readB2cConfig({
+    MPESA_INITIATOR_NAME: "initiator",
+    MPESA_SECURITY_CREDENTIAL: "credential",
+    MPESA_B2C_RESULT_URL: "https://example.test/result",
+    MPESA_B2C_TIMEOUT_URL: "https://example.test/timeout"
+  }), {
+    initiatorName: "initiator",
+    securityCredential: "credential",
+    resultUrl: "https://example.test/result",
+    timeoutUrl: "https://example.test/timeout"
+  });
+});
+
 test("sandbox test payments require both sandbox environment and explicit opt-in", () => {
   assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "sandbox" }), false);
   assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "production", MPESA_SANDBOX_TEST_MODE: "true" }), false);
@@ -87,6 +117,41 @@ test("caches the access token and sends a valid STK request", async () => {
     amount: 250,
     accountReference: "BLK-user1",
     transactionDesc: "Registration"
+  });
+
+  test("initiates a B2C sandbox disbursement to the normalized borrower number", async () => {
+    let pushedBody: Record<string, unknown> | undefined;
+    const fetcher: typeof fetch = async (input, init) => {
+      if (String(input).includes("/oauth/")) {
+        return new Response(JSON.stringify({ access_token: "token", expires_in: "3600" }), { status: 200 });
+      }
+      pushedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        ConversationID: "conversation-1",
+        OriginatorConversationID: "originator-1",
+        ResponseCode: "0",
+        ResponseDescription: "Accept the service request successfully."
+      }), { status: 200 });
+    };
+    const client = new MpesaClient(config, fetcher, () => Date.parse("2026-01-01T00:00:00.000Z"));
+    const b2c = {
+      initiatorName: "initiator",
+      securityCredential: "credential",
+      resultUrl: "https://example.test/result",
+      timeoutUrl: "https://example.test/timeout"
+    };
+
+    const result = await client.initiateB2c(
+      { phone: "0712345678", amount: 10_000, occasion: "loan123" },
+      b2c
+    );
+
+    assert.equal(result.ConversationID, "conversation-1");
+    assert.equal(pushedBody?.CommandID, "BusinessPayment");
+    assert.equal(pushedBody?.PartyA, "174379");
+    assert.equal(pushedBody?.PartyB, "254712345678");
+    assert.equal(pushedBody?.Amount, 10_000);
+    assert.equal(pushedBody?.ResultURL, b2c.resultUrl);
   });
   const token = await client.accessToken();
 

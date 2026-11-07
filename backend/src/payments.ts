@@ -6,7 +6,8 @@ import {
   MpesaClient,
   MpesaProviderError,
   normalizeKenyanPhone,
-  readMpesaConfig
+  readMpesaConfig,
+  validMpesaCallbackToken
 } from "./lib/mpesa.js";
 import { z } from "zod";
 
@@ -49,13 +50,41 @@ async function refreshSandboxPaymentStatus(
   if (!Number.isSafeInteger(resultCode) || resultCode > 2_147_483_647) {
     throw new MpesaProviderError("Safaricom returned an invalid transaction status.");
   }
-  await prisma.payment.updateMany({
-    where: { id: paymentId, status: "PENDING" },
-    data: {
-      status: paymentStatusForMpesaResult(resultCode),
-      resultCode,
-      resultDesc: result.ResultDesc || result.ResponseDescription,
-      ...(callbackReceived ? { callbackReceivedAt: new Date() } : {})
+  await prisma.$transaction(async transaction => {
+    const updated = await transaction.payment.updateMany({
+      where: { id: paymentId, status: "PENDING" },
+      data: {
+        status: paymentStatusForMpesaResult(resultCode),
+        resultCode,
+        resultDesc: result.ResultDesc || result.ResponseDescription,
+        pendingKey: null,
+        ...(callbackReceived ? { callbackReceivedAt: new Date() } : {})
+      }
+    });
+    if (updated.count !== 1 || resultCode !== 0) return;
+    const payment = await transaction.payment.findUnique({
+      where: { id: paymentId },
+      select: { loanOfferId: true, purpose: true, userId: true }
+    });
+    if (payment?.loanOfferId && payment.purpose === "SANDBOX_REPAYMENT") {
+      const offer = await transaction.loanOffer.findUnique({
+        where: { id: payment.loanOfferId },
+        select: { applicationId: true }
+      });
+      const repaid = await transaction.loanOffer.updateMany({
+        where: { id: payment.loanOfferId, status: "ACTIVE" },
+        data: { status: "REPAID", repaidAt: new Date() }
+      });
+      if (repaid.count === 1 && offer) {
+        await transaction.loanAuditLog.create({
+          data: {
+            applicationId: offer.applicationId,
+            actorUserId: payment.userId,
+            action: "REPAYMENT_CONFIRMED",
+            note: "Sandbox repayment was confirmed by the M-Pesa status query."
+          }
+        });
+      }
     }
   });
 }
@@ -229,11 +258,15 @@ export function createPaymentsRouter(express: typeof import("express")) {
       sandboxDisabled(response);
       return;
     }
+    if (!validMpesaCallbackToken(typeof request.query.token === "string" ? request.query.token : undefined)) {
+      response.status(401).json({ error: { code: "INVALID_CALLBACK", message: "Invalid M-Pesa callback." } });
+      return;
+    }
     try {
       const input = stkCallbackSchema.parse(request.body);
       const checkoutRequestId = input.Body.stkCallback.CheckoutRequestID;
       const payment = await prisma.payment.findFirst({
-        where: { checkoutRequestId, purpose: "SANDBOX_TEST" },
+        where: { checkoutRequestId, purpose: { in: ["SANDBOX_TEST", "SANDBOX_REPAYMENT"] } },
         select: { id: true }
       });
       if (!payment) {

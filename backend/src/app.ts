@@ -18,11 +18,13 @@ import {
 } from "helmet";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
-import { createAuthRouter, EmailProviderError } from "./auth.js";
+import { createAuthRouter } from "./auth.js";
 import { prisma } from "./db.js";
+import { EmailProviderError } from "./lib/email.js";
 import { ConfigurationError, InputError, MpesaProviderError } from "./lib/mpesa.js";
 import { createLoansRouter } from "./loans.js";
 import { createPaymentsRouter } from "./payments.js";
+import { createLoanWorkflowRouter } from "./loan-workflow.js";
 
 const app = express();
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:8000";
@@ -48,6 +50,7 @@ app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 app.use("/api/auth", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/payments", rateLimit({ windowMs: 60_000, limit: 6, standardHeaders: true, legacyHeaders: false }));
+app.use("/api/loans/offers", rateLimit({ windowMs: 60_000, limit: 6, standardHeaders: true, legacyHeaders: false }));
 app.use((_request, _response, next) => {
   databaseConnection ??= prisma.$connect().catch(error => {
     databaseConnection = undefined;
@@ -58,6 +61,7 @@ app.use((_request, _response, next) => {
 app.use("/api/auth", createAuthRouter(express));
 app.use("/api", createLoansRouter(express));
 app.use("/api", createPaymentsRouter(express));
+app.use("/api", createLoanWorkflowRouter(express));
 
 app.get("/health", (_request, response) => {
   response.json({ status: "ok" });

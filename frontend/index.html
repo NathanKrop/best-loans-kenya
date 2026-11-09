@@ -875,15 +875,15 @@ const assurance=()=>{
   const requiredUploaded=documentType==="NATIONAL_ID"
     ?documents.nationalIdFront&&documents.nationalIdBack&&documents.selfie
     :documents.passportBioPage&&documents.selfie;
-  const uploadField=(kind,label,uploaded,capture="")=>`<div class="application-item"><label for="assurance-${kind}">${label}</label><input id="assurance-${kind}" data-assurance-document="${kind}" type="file" accept="image/jpeg,image/png,image/webp" ${capture} aria-describedby="assurance-file-hint" ${uploaded?"":"required"} ${S.assurance?"":"disabled"}><small class="form-hint">${uploaded?"Uploaded securely to private storage. Choose a file to replace it.":"JPEG, PNG, or WebP; up to 8 MB."}</small></div>`;
+  const uploadField=(kind,label,uploaded,capture="")=>`<div class="application-item"><label for="assurance-${kind}">${label}</label><input id="assurance-${kind}" data-assurance-document="${kind}" type="file" accept="image/jpeg,image/png,image/webp" ${capture} aria-describedby="assurance-file-hint" ${uploaded?"":"required"}><small class="form-hint">${uploaded?"Uploaded securely to private storage. Choose a file to replace it.":"JPEG, PNG, or WebP; up to 8 MB."}</small></div>`;
   return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Assurance</h1><p>Provide identity images and guarantor details to complete your account setup.</p>
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item done"><span>3</span>Assurance</div></div>
 <form id="assurance-details" novalidate><label for="assurance-document-type">Identity document</label><select id="assurance-document-type"><option value="NATIONAL_ID" ${documentType==="NATIONAL_ID"?"selected":""}>Kenyan ID card</option><option value="PASSPORT" ${documentType==="PASSPORT"?"selected":""}>Passport</option></select>
+<section class="mt" aria-labelledby="assurance-documents-title"><h2 id="assurance-documents-title">Upload your documents</h2><p class="form-hint" id="assurance-file-hint">Choose your images, enter the guarantor details, and use the button below to submit everything.</p><div class="application-list"><div id="assurance-national-id-files" ${documentType==="NATIONAL_ID"?"":"hidden"}>${uploadField("national-id-front","ID card — front",documents.nationalIdFront)}${uploadField("national-id-back","ID card — back",documents.nationalIdBack)}</div><div id="assurance-passport-files" ${documentType==="PASSPORT"?"":"hidden"}>${uploadField("passport-bio-page","Passport — photo/biographical page",documents.passportBioPage)}</div>${uploadField("selfie","A clear selfie",documents.selfie,"capture=\"user\"")}</div><div class="err" id="assurance-upload-error" role="alert"></div></section>
 <label for="guarantor-name">Guarantor full name</label><input id="guarantor-name" maxlength="100" value="${esc(S.assurance?.guarantorFullName||"")}" required>
 <label for="guarantor-phone">Guarantor phone number</label><input id="guarantor-phone" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20" value="${esc(S.assurance?.guarantorPhone||"")}" required>
 <label class="check"><input id="assurance-consent" type="checkbox" ${S.assurance?.consentedAt?"checked":""} required><span>I consent to my identity images, selfie, and guarantor details being collected and stored for identity and application review. I understand this does not automatically verify my identity or guarantee approval.</span></label>
-<div class="err" id="assurance-details-error" role="alert"></div><button class="btn full">${S.assurance?"Save details":"Save details to enable photo uploads"}</button></form>
-<section class="mt" aria-labelledby="assurance-documents-title"><h2 id="assurance-documents-title">Upload your documents</h2><p class="form-hint" id="assurance-file-hint">${S.assurance?"Images are uploaded to private storage and are not publicly accessible.":"Save your guarantor details and consent above to enable photo uploads."}</p><div class="application-list"><div id="assurance-national-id-files" ${documentType==="NATIONAL_ID"?"":"hidden"}>${uploadField("national-id-front","ID card — front",documents.nationalIdFront)}${uploadField("national-id-back","ID card — back",documents.nationalIdBack)}</div><div id="assurance-passport-files" ${documentType==="PASSPORT"?"":"hidden"}>${uploadField("passport-bio-page","Passport — photo/biographical page",documents.passportBioPage)}</div>${uploadField("selfie","A clear selfie",documents.selfie,"capture=\"user\"")}</div><div class="err" id="assurance-upload-error" role="alert"></div><button class="btn full mt" id="submit-assurance" ${S.assurance&&requiredUploaded?"":"disabled"}>Submit assurance</button></section>
+<div class="err" id="assurance-details-error" role="alert"></div><button class="btn full">Save Details and Submit Assurance</button></form>
 <p class="form-hint mt">Accepted formats: JPEG, PNG, WebP. Maximum file size: 8 MB per image. Do not upload documents belonging to someone else.</p></div></div>`;
 };
 
@@ -898,40 +898,57 @@ function assuranceM(){
     event.preventDefault();
     const name=$("#guarantor-name").value.trim();
     const phone=normalizePhone($("#guarantor-phone").value);
+    const documentType=$("#assurance-document-type").value;
+    const requiredDocumentTypes=documentType==="NATIONAL_ID"
+      ?["national-id-front","national-id-back","selfie"]
+      :["passport-bio-page","selfie"];
+    const documents=S.assurance?.documents||{};
+    const uploadedByType={
+      "national-id-front":documents.nationalIdFront,
+      "national-id-back":documents.nationalIdBack,
+      "passport-bio-page":documents.passportBioPage,
+      selfie:documents.selfie
+    };
+    const selectedFiles=requiredDocumentTypes.map(type=>({
+      type,
+      input:document.querySelector(`[data-assurance-document="${type}"]`)
+    }));
     if(name.length<3)return $("#assurance-details-error").textContent="Enter the guarantor's full name.";
     if(!phone)return $("#assurance-details-error").textContent="Enter a valid Kenyan guarantor phone number.";
     if(!$("#assurance-consent").checked)return $("#assurance-details-error").textContent="Consent is required before submitting assurance information.";
-    const button=detailsForm.querySelector("button");
-    button.disabled=true;button.textContent="Saving…";
+    if(selectedFiles.some(({type,input})=>!uploadedByType[type]&&!input.files[0])){
+      return $("#assurance-upload-error").textContent="Choose all required identity images and a selfie before submitting.";
+    }
+    const button=detailsForm.querySelector('button[type="submit"],button:not([type])');
+    let stage="details";
+    button.disabled=true;button.textContent="Saving and submitting…";
     try{
-      S.assurance=await api("/assurance/me",{method:"PUT",body:JSON.stringify({documentType:$("#assurance-document-type").value,guarantorFullName:name,guarantorPhone:phone,consent:true})});
-      go();
-    }catch(error){$("#assurance-details-error").textContent=error.message;button.disabled=false;button.textContent="Save details"}
-  };
-  document.querySelectorAll("[data-assurance-document]").forEach(input=>input.addEventListener("change",async()=>{
-    const file=input.files[0];
-    if(!file)return;
-    const error=$("#assurance-upload-error");
-    if(file.size>8*1024*1024){error.textContent="Each image must be 8 MB or smaller.";input.value="";return}
-    if(!["image/jpeg","image/png","image/webp"].includes(file.type)){error.textContent="Choose a JPEG, PNG, or WebP image.";input.value="";return}
-    error.textContent="";
-    input.disabled=true;
-    try{
-      const response=await fetch(`${API_BASE_URL}/assurance/me/documents/${encodeURIComponent(input.dataset.assuranceDocument)}`,{method:"POST",credentials:"include",headers:{"Content-Type":file.type},body:file});
-      let result={};try{result=await response.json()}catch{}
-      if(!response.ok)throw new Error(result.error?.message||"The image could not be uploaded.");
-      S.assurance=result.data;
-      go();
-    }catch(uploadError){error.textContent=uploadError.message;input.disabled=false}
-  }));
-  const submitButton=$("#submit-assurance");
-  if(submitButton)submitButton.onclick=async()=>{
-    submitButton.disabled=true;submitButton.textContent="Submitting…";
-    try{
+      S.assurance=await api("/assurance/me",{method:"PUT",body:JSON.stringify({documentType,guarantorFullName:name,guarantorPhone:phone,consent:true})});
+      stage="uploads";
+      for(const {type,input} of selectedFiles){
+        const file=input.files[0];
+        if(!file)continue;
+        if(file.size>8*1024*1024)throw new Error("Each image must be 8 MB or smaller.");
+        if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Choose JPEG, PNG, or WebP images.");
+        const response=await fetch(`${API_BASE_URL}/assurance/me/documents/${encodeURIComponent(type)}`,{
+          method:"POST",
+          credentials:"include",
+          headers:{"Content-Type":file.type},
+          body:file
+        });
+        let result={};try{result=await response.json()}catch{}
+        if(!response.ok)throw new Error(result.error?.message||"An image could not be uploaded.");
+        S.assurance=result.data;
+      }
+      stage="submit";
       S.assurance=await api("/assurance/me/submit",{method:"POST",body:"{}"});
       await loadDashboardData();
       location.hash="#/dash";go();
-    }catch(error){$("#assurance-upload-error").textContent=error.message;submitButton.disabled=false;submitButton.textContent="Submit assurance"}
+    }catch(error){
+      const errorElement=stage==="details"?$("#assurance-details-error"):$("#assurance-upload-error");
+      errorElement.textContent=error.message;
+      button.disabled=false;button.textContent="Save Details and Submit Assurance";
+    }
   };
 }
 

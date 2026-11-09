@@ -664,11 +664,11 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
 </footer>
 <script>
 "use strict";
-const S={user:null,verified:false,profile:null,apps:[],offers:[],dashboardError:null,profileEditing:false,notice:null};
+const S={user:null,verified:false,profile:null,apps:[],offers:[],assurance:null,assuranceLoaded:false,dashboardError:null,profileEditing:false,notice:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const KES=n=>"KES "+Math.round(n).toLocaleString("en-KE");
-const localApiOrigin=["localhost","127.0.0.1"].includes(location.hostname)?"http://localhost:3000":location.origin;
+const localApiOrigin=["localhost","127.0.0.1"].includes(location.hostname)?"http://localhost:3001":location.origin;
 const API_BASE_URL=window.BEST_LOANS_API||`${localApiOrigin}/api`;
 async function api(path,options={}){
   const headers={"Content-Type":"application/json",...(options.headers||{})};
@@ -694,7 +694,6 @@ async function loadDashboardData(){
   const [profile,applications,offers]=await Promise.all([api("/profile/me"),api("/loans/me"),api("/loans/offers/me")]);
   S.dashboardError=null;
   S.profile=profile?{
-    id:"***"+profile.nationalIdLast3,
     county:profile.county,
     income:profile.monthlyIncomeRange,
     dateOfBirth:profile.dateOfBirth
@@ -709,10 +708,14 @@ async function loadDashboardData(){
   }));
   S.offers=offers;
 }
+async function loadAssurance(){
+  S.assurance=await api("/assurance/me");
+  S.assuranceLoaded=true;
+}
 async function restoreSession(){
   try{
     setCurrentUser(await api("/auth/me"));
-    await loadDashboardData();
+    await Promise.all([loadDashboardData(),loadAssurance()]);
   }catch(error){
     if(error.status!==401)console.error("Could not restore the signed-in session.");
   }
@@ -727,7 +730,7 @@ function sc(id){const t=()=>{const e=document.getElementById(id);e&&e.scrollInto
   if(location.hash&&location.hash!=="#/"){location.hash="#/";setTimeout(t,60)}else t()}
 
 const FAQ=[["Do I need to pay to join?","No registration payment is required to create an account or submit a loan application."],
-["Who can apply?","Kenyan residents aged 18 or older with a valid national ID or passport, a valid email address and a Kenyan phone number. The email is verified; the phone number is not."],
+["Who can apply?","Kenyan residents aged 18 or older with a valid ID or passport, a verified email address, a Kenyan phone number and a guarantor."],
 ["How much can I borrow?","Applicants aged 18 to 25 may request KES 10,000 to KES 30,000. Applicants over 25 may request KES 30,000 to KES 200,000. These are request limits only, not an offer or approval."],
 ["What will my loan cost?","An offer must disclose the exact amount, flat interest, total repayment and due date before you accept. The sandbox flow uses 10% flat interest; no interest is charged before disbursement."],
 ["Is my data safe?","National ID details are encrypted by the backend and only the last three digits are shown in your profile. The Privacy Policy and verified company contact details must be published before launch."]];
@@ -754,12 +757,12 @@ const home=()=>`
 <p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. Interest, fees, total repayment and eligibility have not been confirmed. Review written terms before accepting any offer.</p></div></div></div>
 
 <section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check its status.</p></div><div class="grid g4">
-${[["Create your account","Register with your name, email and a secure password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Complete your profile","Provide your national ID, date of birth, county and income range."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
+${[["Create your account","Register with your name, email and a secure password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Complete your account","Upload your ID or passport images and a selfie, add guarantor details, and complete your profile."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
 
 <section><div class="w grid g2"><div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
 <h2>What you need</h2>
-<ul class="tick"><li>Kenyan national ID or passport</li><li>You are 18 or older</li><li>A valid email address</li><li>A Kenyan phone number (not verified)</li></ul></div>
+<ul class="tick"><li>Kenyan national ID or passport, plus a selfie</li><li>You are 18 or older</li><li>A verified email address and Kenyan phone number</li><li>A guarantor and their phone number</li></ul></div>
 <div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
 <h2>Borrow responsibly</h2><p style="color:var(--m)">Only borrow what you can repay on time. Compare the total repayable amount, not just the monthly figure, before you accept an offer.</p></div></div></section>
@@ -775,13 +778,13 @@ function homeM(){
   a.oninput=d.oninput=u;u();
 }
 
-const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of 2</span><h1 style="font-size:2rem">Create your account</h1>
-<p style="color:var(--m)">Verify your email to finish creating your account.</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div></div>
+const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 1 of 3</span><h1 style="font-size:2rem">Create your account</h1>
+<p style="color:var(--m)">Verify your email, then complete the Assurance step.</p>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div><div class="step-item"><span>3</span>Assurance</div></div>
 <form id="f" novalidate><label for="nm">Full name</label><input id="nm" autocomplete="name" maxlength="100" required>
 <label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254" required>
-<label for="pw">Password (10+ characters)</label><input id="pw" type="password" autocomplete="new-password" minlength="10" maxlength="128" required><small class="form-hint">Use at least 10 characters. Don't reuse another password.</small>
-<label for="confirmPassword">Confirm Password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+<label for="pw">Password</label><input id="pw" type="password" autocomplete="new-password" maxlength="128" required><small class="form-hint">Don't reuse another password.</small>
+<label for="confirmPassword">Confirm Password</label><input id="confirmPassword" type="password" autocomplete="new-password" maxlength="128" required>
 <label class="check"><input id="consent" type="checkbox"><span>I consent to using my information to create and manage my account and application.</span></label>
 <div class="err" id="e" role="alert"></div><button class="btn full">Continue</button></form>
 <p class="note center mt">Already registered? <a href="#/login">Log in</a></p></div></div>`;
@@ -790,7 +793,7 @@ function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
   const er=m=>{$("#e").textContent=m};
   if(n.length<3)return er("Enter your full name.");
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return er("Enter a valid email address.");
-  if(w.length<10)return er("Choose a password with at least 10 characters.");
+  if(!w)return er("Enter a password.");
   if(w!==confirmPassword)return er("The passwords do not match.");
   if(!$("#consent").checked)return er("Please provide consent to use your information for your account and application.");
   const button=$("#f button");button.disabled=true;button.textContent="Creating account…";
@@ -809,8 +812,13 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const email=$("#
   try{
     const user=await api("/auth/login",{method:"POST",body:JSON.stringify({email,password:$("#pw").value})});
     setCurrentUser(user);S.profile=null;S.apps=[];
-    try{await loadDashboardData()}catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
-    location.hash="#/dash";
+      await loadAssurance();
+      if(S.assurance?.status==="SUBMITTED"){
+        try{await loadDashboardData()}catch{S.dashboardError="You are signed in, but some dashboard details could not be loaded. Refresh to try again."}
+        location.hash="#/dash";
+      }else{
+        location.hash="#/assurance";
+      }
   }catch(error){
     if(error.code==="ACCOUNT_NOT_READY"){
       S.user={id:null,name:"Member",email,phone:null};
@@ -822,13 +830,15 @@ function loginM(){$("#f").onsubmit=async e=>{e.preventDefault();const email=$("#
   }
 }}
 
-const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of 2</span><h1 style="font-size:2rem">Verify your email</h1>
+const otp=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 2 of 3</span><h1 style="font-size:2rem">Verify your email</h1>
 <p style="color:var(--m)">A 6-digit confirmation code was sent to ${esc(S.user?.email||"your email")}. Check your inbox or spam folder.</p>
-<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div></div>
-<form id="f" novalidate><label for="c">6-digit email confirmation code</label><input id="c" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item"><span>3</span>Assurance</div></div>
+<form id="f" novalidate><label for="c">6-digit email confirmation code</label><input id="c" type="text" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" aria-describedby="otp-hint"><small id="otp-hint" class="form-hint">The code expires after 5 minutes. Never share it with anyone.</small>
 <label for="ph">Phone number (not verified)</label><input id="ph" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" autocomplete="tel" maxlength="20" required><small class="form-hint">This number is saved to your account but will not be verified.</small>
 <div class="err" id="e" role="alert"></div><button class="btn full">Confirm email</button><button type="button" class="btn full" id="resend" style="margin-top:10px">Resend code to email</button></form></div></div>`;
 function otpM(){
+  const codeInput=$("#c");
+  codeInput.addEventListener("input",()=>{codeInput.value=codeInput.value.replace(/\D/g,"").slice(0,6)});
   $("#resend").onclick=async()=>{
     const resend=$("#resend");
     resend.disabled=true;resend.textContent="Sending…";
@@ -847,10 +857,78 @@ function otpM(){
   try{
     const user=await api("/auth/verify-otp",{method:"POST",body:JSON.stringify({email:S.user.email,phone,code:$("#c").value})});
     setCurrentUser(user);
-    try{await loadDashboardData()}catch{S.dashboardError="Email verified, but some dashboard details could not be loaded. Refresh to try again."}
-    location.hash="#/dash";
+    await loadAssurance();
+    if(S.assurance?.status==="SUBMITTED"){
+      await loadDashboardData();
+      location.hash="#/dash";
+    }else{
+      location.hash="#/assurance";
+    }
   }catch(error){$("#e").textContent=error.message;button.disabled=false;button.textContent="Verify and continue"}
 }}
+
+const assurance=()=>{
+  const submitted=S.assurance?.status==="SUBMITTED";
+  if(submitted)return `<div class="narrow"><div class="card"><span class="eyebrow">Step 3 of 3</span><h1>Assurance submitted</h1><p>Your identity documents and guarantor details have been submitted and stored privately. They have not been verified. Uploading documents does not automatically verify identity or guarantee loan approval.</p><a class="btn full" href="#/dash">Continue to dashboard</a></div></div>`;
+  const documentType=S.assurance?.documentType||"NATIONAL_ID";
+  const documents=S.assurance?.documents||{};
+  const requiredUploaded=documentType==="NATIONAL_ID"
+    ?documents.nationalIdFront&&documents.nationalIdBack&&documents.selfie
+    :documents.passportBioPage&&documents.selfie;
+  const uploadField=(kind,label,uploaded,capture="")=>`<div class="application-item"><label for="assurance-${kind}">${label}</label><input id="assurance-${kind}" data-assurance-document="${kind}" type="file" accept="image/jpeg,image/png,image/webp" ${capture} aria-describedby="assurance-file-hint" ${uploaded?"":"required"}><small class="form-hint">${uploaded?"Uploaded securely to private storage. Choose a file to replace it.":"JPEG, PNG, or WebP; up to 8 MB."}</small></div>`;
+  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Step 3 of 3</span><h1 style="font-size:2rem">Assurance</h1><p>Provide identity images and guarantor details to complete your account setup.</p>
+<div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item done"><span>2</span>Verify</div><div class="step-item done"><span>3</span>Assurance</div></div>
+<form id="assurance-details" novalidate><label for="assurance-document-type">Identity document</label><select id="assurance-document-type"><option value="NATIONAL_ID" ${documentType==="NATIONAL_ID"?"selected":""}>Kenyan ID card</option><option value="PASSPORT" ${documentType==="PASSPORT"?"selected":""}>Passport</option></select>
+<label for="guarantor-name">Guarantor full name</label><input id="guarantor-name" maxlength="100" value="${esc(S.assurance?.guarantorFullName||"")}" required>
+<label for="guarantor-phone">Guarantor phone number</label><input id="guarantor-phone" type="tel" inputmode="tel" placeholder="0712 345 678 or +254 712 345 678" maxlength="20" value="${esc(S.assurance?.guarantorPhone||"")}" required>
+<label class="check"><input id="assurance-consent" type="checkbox" ${S.assurance?.consentedAt?"checked":""} required><span>I consent to my identity images, selfie, and guarantor details being collected and stored for identity and application review. I understand this does not automatically verify my identity or guarantee approval.</span></label>
+<div class="err" id="assurance-details-error" role="alert"></div><button class="btn full">${S.assurance?"Save details":"Save details and continue"}</button></form>
+${S.assurance?`<section class="mt" aria-labelledby="assurance-documents-title"><h2 id="assurance-documents-title">Upload your documents</h2><p class="form-hint" id="assurance-file-hint">Images are uploaded to private storage and are not publicly accessible.</p><div class="application-list">${documentType==="NATIONAL_ID"?`${uploadField("national-id-front","ID card — front",documents.nationalIdFront)}${uploadField("national-id-back","ID card — back",documents.nationalIdBack)}`:uploadField("passport-bio-page","Passport — photo/biographical page",documents.passportBioPage)}${uploadField("selfie","A clear selfie",documents.selfie,"capture=\"user\"")}</div><div class="err" id="assurance-upload-error" role="alert"></div><button class="btn full mt" id="submit-assurance" ${requiredUploaded?"":"disabled"}>Submit assurance</button></section>`:""}
+<p class="form-hint mt">Accepted formats: JPEG, PNG, WebP. Maximum file size: 8 MB per image. Do not upload documents belonging to someone else.</p></div></div>`;
+};
+
+function assuranceM(){
+  const detailsForm=$("#assurance-details");
+  if(detailsForm)detailsForm.onsubmit=async event=>{
+    event.preventDefault();
+    const name=$("#guarantor-name").value.trim();
+    const phone=normalizePhone($("#guarantor-phone").value);
+    if(name.length<3)return $("#assurance-details-error").textContent="Enter the guarantor's full name.";
+    if(!phone)return $("#assurance-details-error").textContent="Enter a valid Kenyan guarantor phone number.";
+    if(!$("#assurance-consent").checked)return $("#assurance-details-error").textContent="Consent is required before submitting assurance information.";
+    const button=detailsForm.querySelector("button");
+    button.disabled=true;button.textContent="Saving…";
+    try{
+      S.assurance=await api("/assurance/me",{method:"PUT",body:JSON.stringify({documentType:$("#assurance-document-type").value,guarantorFullName:name,guarantorPhone:phone,consent:true})});
+      go();
+    }catch(error){$("#assurance-details-error").textContent=error.message;button.disabled=false;button.textContent="Save details"}
+  };
+  document.querySelectorAll("[data-assurance-document]").forEach(input=>input.addEventListener("change",async()=>{
+    const file=input.files[0];
+    if(!file)return;
+    const error=$("#assurance-upload-error");
+    if(file.size>8*1024*1024){error.textContent="Each image must be 8 MB or smaller.";input.value="";return}
+    if(!["image/jpeg","image/png","image/webp"].includes(file.type)){error.textContent="Choose a JPEG, PNG, or WebP image.";input.value="";return}
+    error.textContent="";
+    input.disabled=true;
+    try{
+      const response=await fetch(`${API_BASE_URL}/assurance/me/documents/${encodeURIComponent(input.dataset.assuranceDocument)}`,{method:"POST",credentials:"include",headers:{"Content-Type":file.type},body:file});
+      let result={};try{result=await response.json()}catch{}
+      if(!response.ok)throw new Error(result.error?.message||"The image could not be uploaded.");
+      S.assurance=result.data;
+      go();
+    }catch(uploadError){error.textContent=uploadError.message;input.disabled=false}
+  }));
+  const submitButton=$("#submit-assurance");
+  if(submitButton)submitButton.onclick=async()=>{
+    submitButton.disabled=true;submitButton.textContent="Submitting…";
+    try{
+      S.assurance=await api("/assurance/me/submit",{method:"POST",body:"{}"});
+      await loadDashboardData();
+      location.hash="#/dash";go();
+    }catch(error){$("#assurance-upload-error").textContent=error.message;submitButton.disabled=false;submitButton.textContent="Submit assurance"}
+  };
+}
 
 function completion(){return 50+(S.profile?50:0)}
 function applicationSubmittedNotice(){
@@ -895,8 +973,8 @@ ${offer.payments?.filter(payment=>payment.status==="PENDING").map(payment=>`<div
 <div class="card"><div class="row"><b>Application readiness</b><span class="stat-pill">${p}%</span></div><div class="bar mt" role="progressbar" aria-label="Application readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><i style="width:${p}%"></i></div>
 <p class="note" style="margin-top:12px">${S.profile?"Your profile is saved. You can submit an application request.":"Complete your profile to submit an application request."}</p></div>
 <div class="grid g2 dashboard-grid mt">
-<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile&&!S.profileEditing?`<p style="color:var(--m);margin:0">ID ending ${esc(S.profile.id.slice(-3))}, ${esc(S.profile.county)}, ${esc(S.profile.income)}.</p><button class="btn secondary full mt" id="editProfile" type="button">Update profile details</button><small class="form-hint">For your privacy, enter your full ID again when updating your profile.</small>`:
-`<form id="pf" novalidate><label for="id">National ID number</label><input id="id" inputmode="numeric" pattern="[0-9]{7,8}" maxlength="8" autocomplete="off" required><small class="form-hint">Your ID is encrypted when saved; the full number is not shown in your profile.</small>
+<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile&&!S.profileEditing?`<p style="color:var(--m);margin:0">${esc(S.profile.county)}, ${esc(S.profile.income)}.</p><button class="btn secondary full mt" id="editProfile" type="button">Update profile details</button>`:
+`<form id="pf" novalidate><p class="form-hint">Identity document images are provided in the Assurance step.</p>
 <label for="dob">Date of birth</label><input id="dob" type="date" autocomplete="bday" value="${esc(S.profile?.dateOfBirth||"")}" required>
 <label for="co">County</label><select id="co">${counties.map(c=>`<option ${selected(S.profile?.county,c)}>${esc(c)}</option>`).join("")}</select>
 <label for="in">Monthly income range</label><select id="in">${["Below KES 15,000","KES 15,000 to 40,000","KES 40,000 to 100,000","Above KES 100,000"].map(c=>`<option ${selected(S.profile?.income,c)}>${esc(c)}</option>`).join("")}</select>
@@ -1006,8 +1084,7 @@ function dashM(){
   if(editProfile)editProfile.onclick=()=>{S.profileEditing=true;go()};
   const cancelEdit=$("#cancelEdit");
   if(cancelEdit)cancelEdit.onclick=()=>{S.profileEditing=false;go()};
-  const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();const id=$("#id")?.value.trim()||"",dob=$("#dob").value;
-    if(!/^\d{7,8}$/.test(id))return $("#e1").textContent="Enter your 7 or 8 digit national ID number.";
+  const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();const dob=$("#dob").value;
     if(!dob)return $("#e1").textContent="Enter your date of birth.";
     const birthDate=new Date(`${dob}T00:00:00.000Z`),today=new Date();
     let age=today.getUTCFullYear()-birthDate.getUTCFullYear();
@@ -1015,8 +1092,8 @@ function dashM(){
     if(!Number.isFinite(birthDate.getTime())||age<18)return $("#e1").textContent="You must be at least 18 years old to submit an application.";
     const button=pf.querySelector("button");button.disabled=true;button.textContent="Saving profile…";
     const county=$("#co").value;
-    api("/profile/me",{method:"PUT",body:JSON.stringify({nationalId:id,dateOfBirth:dob,county,monthlyIncomeRange:$("#in").value})})
-      .then(profile=>{S.profile={id:"***"+profile.nationalIdLast3,county:profile.county,income:profile.monthlyIncomeRange,dateOfBirth:dob};S.profileEditing=false;S.dashboardError=null;S.notice="Your profile details have been saved.";go()})
+    api("/profile/me",{method:"PUT",body:JSON.stringify({dateOfBirth:dob,county,monthlyIncomeRange:$("#in").value})})
+      .then(profile=>{S.profile={county:profile.county,income:profile.monthlyIncomeRange,dateOfBirth:dob};S.profileEditing=false;S.dashboardError=null;S.notice="Your profile details have been saved.";go()})
       .catch(error=>{$("#e1").textContent=error.message;button.disabled=false;button.textContent="Save profile"});
   };
   const lf=$("#lf");if(lf)lf.onsubmit=e=>{e.preventDefault();const a=+$("#la").value,d=+$("#ld").value;
@@ -1033,13 +1110,16 @@ function dashM(){
 }
 
 function fundedM(){bindLoanForms()}
-const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/dash":[dash,dashM],"/loan-funded":[loanFunded,fundedM]};
+const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM],"/loan-funded":[loanFunded,fundedM]};
 function go(){
   const route=location.hash.slice(1)||"/",p=route.startsWith("/loan-funded/")?"/loan-funded":route,r=R[p]||R["/"];
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
   if(p==="/loan-funded"&&!S.user){location.hash="#/login";return}
+  if(p==="/assurance"&&!S.user){location.hash="#/signup";return}
+  if(S.user&&S.assuranceLoaded&&S.assurance?.status!=="SUBMITTED"&&p!=="/assurance"&&p!=="/otp"){location.hash="#/assurance";return}
+  if(p==="/assurance"&&S.assurance?.status==="SUBMITTED"){location.hash="#/dash";return}
   if(p==="/otp"&&!S.user){location.hash="#/signup";return}
-  if(p==="/otp"&&S.verified){location.hash="#/dash";return}
+  if(p==="/otp"&&S.verified){location.hash=S.assurance?.status==="SUBMITTED"?"#/dash":"#/assurance";return}
   document.body.classList.toggle("dashboard-mode",p==="/dash"||p==="/loan-funded");
   $("#app").innerHTML=r[0]();r[1]&&r[1]();
   $("#hb").innerHTML=S.user?`<a class="btn sm" href="#/dash">Dashboard</a> <button class="btn sm line" id="logout">Log out</button>`:`<a class="btn sm" href="#/login" style="background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.4)">Log in</a> <a class="btn sm" href="#/signup">Join</a>`;
@@ -1047,7 +1127,7 @@ function go(){
   if(logoutButton)logoutButton.onclick=async()=>{
     try{await api("/auth/logout",{method:"POST"})}
     catch(error){$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><p class="err" role="alert">${esc(error.message)}</p></div>`);return}
-    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.offers=[];S.dashboardError=null;S.profileEditing=false;S.notice=null;
+    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.offers=[];S.assurance=null;S.assuranceLoaded=false;S.dashboardError=null;S.profileEditing=false;S.notice=null;
     location.hash="#/";go();
   };
   if(!(p==="/dash"&&document.activeElement&&document.activeElement.id))window.scrollTo(0,0);

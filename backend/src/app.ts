@@ -25,6 +25,12 @@ import { ConfigurationError, InputError, MpesaProviderError } from "./lib/mpesa.
 import { createLoansRouter } from "./loans.js";
 import { createPaymentsRouter } from "./payments.js";
 import { createLoanWorkflowRouter } from "./loan-workflow.js";
+import {
+  AssuranceConfigurationError,
+  AssuranceInputError,
+  AssuranceStorageError,
+  createAssuranceRouter
+} from "./assurance.js";
 
 const app = express();
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:8000";
@@ -51,6 +57,7 @@ app.use(express.json({ limit: "32kb" }));
 app.use("/api/auth", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/payments", rateLimit({ windowMs: 60_000, limit: 6, standardHeaders: true, legacyHeaders: false }));
 app.use("/api/loans/offers", rateLimit({ windowMs: 60_000, limit: 6, standardHeaders: true, legacyHeaders: false }));
+app.use("/api/assurance", rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
 app.use((_request, _response, next) => {
   databaseConnection ??= prisma.$connect().catch(error => {
     databaseConnection = undefined;
@@ -59,6 +66,7 @@ app.use((_request, _response, next) => {
   void databaseConnection.then(() => next(), next);
 });
 app.use("/api/auth", createAuthRouter(express));
+app.use("/api", createAssuranceRouter(express));
 app.use("/api", createLoansRouter(express));
 app.use("/api", createPaymentsRouter(express));
 app.use("/api", createLoanWorkflowRouter(express));
@@ -68,6 +76,12 @@ app.get("/health", (_request, response) => {
 });
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  if (typeof error === "object" && error !== null && "status" in error && error.status === 413) {
+    response.status(413).json({
+      error: { code: "UPLOAD_TOO_LARGE", message: "Each assurance image must be 8 MB or smaller." }
+    });
+    return;
+  }
   if (error instanceof ZodError) {
     response.status(400).json({
       error: {
@@ -84,6 +98,18 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
   }
   if (error instanceof ConfigurationError) {
     response.status(503).json({ error: { code: "MPESA_NOT_CONFIGURED", message: error.message } });
+    return;
+  }
+  if (error instanceof AssuranceConfigurationError) {
+    response.status(503).json({ error: { code: "ASSURANCE_STORAGE_NOT_CONFIGURED", message: error.message } });
+    return;
+  }
+  if (error instanceof AssuranceStorageError) {
+    response.status(502).json({ error: { code: "ASSURANCE_STORAGE_ERROR", message: error.message } });
+    return;
+  }
+  if (error instanceof AssuranceInputError) {
+    response.status(400).json({ error: { code: "INVALID_ASSURANCE_IMAGE", message: error.message } });
     return;
   }
   if (error instanceof EmailProviderError) {

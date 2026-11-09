@@ -38,6 +38,24 @@ model LoanAuditLog {
   @@index([applicationId, createdAt])
 }
 
+model Assurance {
+  id                 String                @id @default(uuid()) @db.Uuid
+  userId             String                @unique @db.Uuid
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType       AssuranceDocumentType
+  nationalIdFront    String?
+  nationalIdBack     String?
+  passportBioPage    String?
+  selfie             String?
+  guarantorFullName  String
+  guarantorPhone     String
+  consentedAt        DateTime?
+  status             AssuranceStatus       @default(DRAFT)
+  submittedAt        DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -77,6 +95,7 @@ model User {
   payments           Payment[]
   otpCodes           OtpCode[]
   profile            Profile?
+  assurance          Assurance?
   loanApplications    LoanApplication[]
   offersMade          LoanOffer[]
   auditActions        LoanAuditLog[]
@@ -90,8 +109,8 @@ model Profile {
   id                    String   @id @default(uuid()) @db.Uuid
   userId                String   @unique @db.Uuid
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nationalIdEncrypted   String
-  nationalIdLast3       String
+  nationalIdEncrypted   String?
+  nationalIdLast3       String?
   dateOfBirth           DateTime @db.Date
   county                String
   monthlyIncomeRange    String
@@ -113,6 +132,16 @@ enum LoanOfferStatus {
   DISBURSEMENT_FAILED
   ACTIVE
   REPAID
+}
+
+enum AssuranceDocumentType {
+  NATIONAL_ID
+  PASSPORT
+}
+
+enum AssuranceStatus {
+  DRAFT
+  SUBMITTED
 }
 
 model LoanApplication {

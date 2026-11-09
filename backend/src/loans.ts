@@ -23,7 +23,7 @@ const incomeRanges = [
 ] as const;
 
 const profileSchema = z.object({
-  nationalId: z.string().regex(/^\d{7,8}$/),
+  nationalId: z.string().regex(/^\d{7,8}$/).optional(),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
     const date = new Date(`${value}T00:00:00.000Z`);
     return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
@@ -97,20 +97,24 @@ export function createLoansRouter(express: typeof import("express")) {
         });
         return;
       }
-      const encrypted = encryptNationalId(input.nationalId);
+      const encrypted = input.nationalId ? encryptNationalId(input.nationalId) : undefined;
       const profile = await prisma.profile.upsert({
         where: { userId: request.userId! },
         create: {
           userId: request.userId!,
-          nationalIdEncrypted: encrypted,
-          nationalIdLast3: input.nationalId.slice(-3),
+          ...(input.nationalId ? {
+            nationalIdEncrypted: encrypted,
+            nationalIdLast3: input.nationalId.slice(-3)
+          } : {}),
           dateOfBirth,
           county: input.county,
           monthlyIncomeRange: input.monthlyIncomeRange
         },
         update: {
-          nationalIdEncrypted: encrypted,
-          nationalIdLast3: input.nationalId.slice(-3),
+          ...(input.nationalId ? {
+            nationalIdEncrypted: encrypted,
+            nationalIdLast3: input.nationalId.slice(-3)
+          } : {}),
           dateOfBirth,
           county: input.county,
           monthlyIncomeRange: input.monthlyIncomeRange
@@ -142,8 +146,17 @@ export function createLoansRouter(express: typeof import("express")) {
       const input = applicationSchema.parse(request.body);
       const user = await prisma.user.findUnique({
         where: { id: request.userId! },
-        select: { profile: { select: { dateOfBirth: true } } }
+        select: {
+          profile: { select: { dateOfBirth: true } },
+          assurance: { select: { status: true } }
+        }
       });
+      if (user?.assurance?.status !== "SUBMITTED") {
+        response.status(403).json({
+          error: { code: "ASSURANCE_REQUIRED", message: "Complete the assurance step before applying." }
+        });
+        return;
+      }
       if (!user?.profile) {
         response.status(403).json({
           error: {

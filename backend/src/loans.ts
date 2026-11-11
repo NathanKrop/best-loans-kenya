@@ -3,24 +3,10 @@ import type { AuthenticatedRequest } from "./auth.js";
 import { requireUser } from "./auth.js";
 import { prisma } from "./db.js";
 import { ConfigurationError } from "./lib/mpesa.js";
+import { ageOn, counties, incomeRanges, isAtLeastEighteen } from "./lib/profile.js";
 import { z } from "zod";
 
-const counties = [
-  "Baringo", "Bomet", "Bungoma", "Busia", "Elgeyo-Marakwet", "Embu", "Garissa", "Homa Bay",
-  "Isiolo", "Kajiado", "Kakamega", "Kericho", "Kiambu", "Kilifi", "Kirinyaga", "Kisii",
-  "Kisumu", "Kitui", "Kwale", "Laikipia", "Lamu", "Machakos", "Makueni", "Mandera",
-  "Marsabit", "Meru", "Migori", "Mombasa", "Murang'a", "Nairobi", "Nakuru", "Nandi",
-  "Narok", "Nyamira", "Nyandarua", "Nyeri", "Samburu", "Siaya", "Taita-Taveta",
-  "Tana River", "Tharaka-Nithi", "Trans Nzoia", "Turkana", "Uasin Gishu", "Vihiga",
-  "Wajir", "West Pokot", "Other"
-] as const;
-
-const incomeRanges = [
-  "Below KES 15,000",
-  "KES 15,000 to 40,000",
-  "KES 40,000 to 100,000",
-  "Above KES 100,000"
-] as const;
+export { ageOn, isAtLeastEighteen };
 
 const profileSchema = z.object({
   nationalId: z.string().regex(/^\d{7,8}$/).optional(),
@@ -31,19 +17,6 @@ const profileSchema = z.object({
   county: z.enum(counties),
   monthlyIncomeRange: z.enum(incomeRanges)
 });
-
-export function ageOn(dateOfBirth: Date, now = new Date()): number {
-  let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
-  const beforeBirthday =
-    now.getUTCMonth() < dateOfBirth.getUTCMonth() ||
-    (now.getUTCMonth() === dateOfBirth.getUTCMonth() && now.getUTCDate() < dateOfBirth.getUTCDate());
-  if (beforeBirthday) age -= 1;
-  return age;
-}
-
-export function isAtLeastEighteen(dateOfBirth: Date, now = new Date()): boolean {
-  return ageOn(dateOfBirth, now) >= 18;
-}
 
 export function requestedAmountRangeForAge(age: number): { min: number; max: number } | null {
   if (!Number.isInteger(age) || age < 18) return null;

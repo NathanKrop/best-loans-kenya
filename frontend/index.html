@@ -664,7 +664,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
 </footer>
 <script>
 "use strict";
-const S={user:null,verified:false,profile:null,apps:[],offers:[],assurance:null,assuranceLoaded:false,dashboardError:null,profileEditing:false,notice:null};
+const S={user:null,verified:false,profile:null,apps:[],offers:[],assurance:null,assuranceLoaded:false,dashboardError:null,applicationReceipt:null,notice:null};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const KES=n=>"KES "+Math.round(n).toLocaleString("en-KE");
@@ -739,7 +739,7 @@ const home=()=>`
 <div class="hero"><div class="w hg"><div class="hero-copy">
 <span class="eyebrow">A simpler way to apply</span>
 <h1>Start your loan application from your phone</h1>
-<p>Create an account, complete your profile and submit an application online. You can track its status from your dashboard.</p>
+<p>Create an account, verify your email, complete Assurance and submit an application request online. Track its status from your dashboard.</p>
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px">
   <a class="btn sun" href="#/signup">Get started</a>
   <button class="btn line" onclick="sc('how')">See how it works</button>
@@ -757,7 +757,7 @@ const home=()=>`
 <p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. Interest, fees, total repayment and eligibility have not been confirmed. Review written terms before accepting any offer.</p></div></div></div>
 
 <section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check its status.</p></div><div class="grid g4">
-${[["Create your account","Register with your name, email and a secure password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Complete your account","Upload your ID or passport images and a selfie, add guarantor details, and complete your profile."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
+${[["Create your account","Enter your name, email, date of birth, county, income range and password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Complete Assurance","Upload your ID or passport images and a selfie, and add guarantor details."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
 
 <section><div class="w grid g2"><div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
@@ -783,25 +783,39 @@ const signup=()=>`<div class="narrow"><div class="card" style="padding:32px 28px
 <div class="step-list" aria-label="Registration progress"><div class="step-item done"><span>1</span>Account</div><div class="step-item"><span>2</span>Verify</div><div class="step-item"><span>3</span>Assurance</div></div>
 <form id="f" novalidate><label for="nm">Full name</label><input id="nm" autocomplete="name" maxlength="100" required>
 <label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254" required>
+<label for="signup-dob">Date of birth</label><input id="signup-dob" type="date" autocomplete="bday" required><p class="form-hint" id="signup-age-limit" aria-live="polite">Enter your date of birth to calculate your loan request limit.</p>
+<label for="signup-county">County</label><select id="signup-county" required><option value="" selected disabled>Choose your county</option>${counties.map(county=>`<option value="${esc(county)}">${esc(county)}</option>`).join("")}</select>
+<label for="signup-income">Monthly income range</label><select id="signup-income" required><option value="" selected disabled>Choose your income range</option>${incomeRanges.map(income=>`<option value="${esc(income)}">${esc(income)}</option>`).join("")}</select>
 <label for="pw">Password</label><input id="pw" type="password" autocomplete="new-password" maxlength="128" required><small class="form-hint">Don't reuse another password.</small>
 <label for="confirmPassword">Confirm Password</label><input id="confirmPassword" type="password" autocomplete="new-password" maxlength="128" required>
 <label class="check"><input id="consent" type="checkbox"><span>I consent to using my information to create and manage my account and application.</span></label>
 <div class="err" id="e" role="alert"></div><button class="btn full">Continue</button></form>
 <p class="note center mt">Already registered? <a href="#/login">Log in</a></p></div></div>`;
-function signupM(){$("#f").onsubmit=async e=>{e.preventDefault();
+function signupM(){
+  $("#signup-dob").addEventListener("input",()=>{
+    $("#signup-age-limit").textContent=loanRangeMessage($("#signup-dob").value);
+  });
+  $("#f").onsubmit=async e=>{e.preventDefault();
   const n=$("#nm").value.trim(),email=$("#email").value.trim().toLowerCase(),w=$("#pw").value,confirmPassword=$("#confirmPassword").value;
   const er=m=>{$("#e").textContent=m};
   if(n.length<3)return er("Enter your full name.");
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return er("Enter a valid email address.");
+  if(!amountRangeForDateOfBirth($("#signup-dob").value))return er("You must be at least 18 years old and enter a valid date of birth.");
+  if(!$("#signup-county").value)return er("Choose your county.");
+  if(!$("#signup-income").value)return er("Choose your monthly income range.");
   if(!w)return er("Enter a password.");
   if(w!==confirmPassword)return er("The passwords do not match.");
   if(!$("#consent").checked)return er("Please provide consent to use your information for your account and application.");
   const button=$("#f button");button.disabled=true;button.textContent="Creating account…";
   try{
-    const result=await api("/auth/register",{method:"POST",body:JSON.stringify({fullName:n,email,password:w,consent:true})});
+    const result=await api("/auth/register",{method:"POST",body:JSON.stringify({
+      fullName:n,email,password:w,dateOfBirth:$("#signup-dob").value,
+      county:$("#signup-county").value,monthlyIncomeRange:$("#signup-income").value,consent:true
+    })});
     S.user={id:result.userId,name:n,email:result.email};location.hash="#/otp";
   }catch(error){er(error.message);button.disabled=false;button.textContent="Continue"}
-}}
+  };
+}
 
 const login=()=>`<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Welcome back</span><h1 style="font-size:2rem">Log in</h1><p style="color:var(--m)">Sign in with your verified email and password.</p>
 <form id="f" novalidate><label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" maxlength="128">
@@ -953,11 +967,8 @@ function assuranceM(){
 }
 
 function completion(){return 50+(S.profile?50:0)}
-function applicationSubmittedNotice(){
-  const firstName=S.user.name.trim().split(/\s+/)[0];
-  S.notice=`Your loan application was submitted, ${firstName}. This confirms receipt only; it is not an approval or loan offer.`;
-}
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot","Other"];
+const incomeRanges=["Below KES 15,000","KES 15,000 to 40,000","KES 40,000 to 100,000","Above KES 100,000"];
 function ageOnDate(dateOfBirth){
   if(!dateOfBirth)return null;
   const birth=new Date(`${dateOfBirth}T00:00:00.000Z`);
@@ -970,6 +981,14 @@ function amountRangeForDateOfBirth(dateOfBirth){
   const age=ageOnDate(dateOfBirth);
   if(age===null||age<18)return null;
   return age<=25?{min:10000,max:30000}:{min:30000,max:200000};
+}
+function loanRangeMessage(dateOfBirth){
+  if(!dateOfBirth)return "Enter your date of birth to calculate your request limit.";
+  const age=ageOnDate(dateOfBirth);
+  if(age===null)return "Enter a valid date of birth.";
+  if(age<18)return "You must be at least 18 years old to submit an application.";
+  const range=amountRangeForDateOfBirth(dateOfBirth);
+  return `At age ${age}, your request limit is KES ${range.min.toLocaleString("en-KE")} to KES ${range.max.toLocaleString("en-KE")}. This is a request limit, not a loan approval.`;
 }
 const dash=()=>{
   const p=completion();
@@ -995,12 +1014,12 @@ ${offer.payments?.filter(payment=>payment.status==="PENDING").map(payment=>`<div
 <div class="card"><div class="row"><b>Application readiness</b><span class="stat-pill">${p}%</span></div><div class="bar mt" role="progressbar" aria-label="Application readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}"><i style="width:${p}%"></i></div>
 <p class="note" style="margin-top:12px">${S.profile?"Your profile is saved. You can submit an application request.":"Complete your profile to submit an application request."}</p></div>
 <div class="grid g2 dashboard-grid mt">
-<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile&&!S.profileEditing?`<p style="color:var(--m);margin:0">${esc(S.profile.county)}, ${esc(S.profile.income)}.</p><button class="btn secondary full mt" id="editProfile" type="button">Update profile details</button>`:
-`<form id="pf" novalidate><p class="form-hint">Identity document images are provided in the Assurance step.</p>
-<label for="dob">Date of birth</label><input id="dob" type="date" autocomplete="bday" value="${esc(S.profile?.dateOfBirth||"")}" required>
+<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><h3>Your profile</h3>${S.profile?`<div class="application-list"><div class="application-item"><b>Full name</b><div>${esc(S.user.name)}</div></div><div class="application-item"><b>Email</b><div>${esc(S.user.email)}</div></div><div class="application-item"><b>Phone</b><div>${esc(S.user.phone||"Not provided")}</div></div><div class="application-item"><b>Date of birth</b><div>${esc(new Date(`${S.profile.dateOfBirth}T00:00:00.000Z`).toLocaleDateString("en-KE"))} · Age ${ageOnDate(S.profile.dateOfBirth)}</div></div><div class="application-item"><b>County</b><div>${esc(S.profile.county)}</div></div><div class="application-item"><b>Monthly income</b><div>${esc(S.profile.income)}</div></div></div>`:
+`<form id="pf" novalidate><p class="form-hint">Please complete these details once. They will be saved with your profile and used to calculate your application range.</p>
+<label for="dob">Date of birth</label><input id="dob" type="date" autocomplete="bday" value="${esc(S.profile?.dateOfBirth||"")}" required><p class="form-hint" id="dob-amount-range" aria-live="polite">${esc(loanRangeMessage(S.profile?.dateOfBirth||""))}</p>
 <label for="co">County</label><select id="co">${counties.map(c=>`<option ${selected(S.profile?.county,c)}>${esc(c)}</option>`).join("")}</select>
 <label for="in">Monthly income range</label><select id="in">${["Below KES 15,000","KES 15,000 to 40,000","KES 40,000 to 100,000","Above KES 100,000"].map(c=>`<option ${selected(S.profile?.income,c)}>${esc(c)}</option>`).join("")}</select>
-<div class="err" id="e1" role="alert"></div><button class="btn full">${S.profile?"Save changes":"Save profile"}</button>${S.profile?`<button class="btn secondary full mt" id="cancelEdit" type="button">Cancel</button>`:""}</form>`}</div>
+<div class="err" id="e1" role="alert"></div><button class="btn full">Save profile</button></form>`}</div>
 <div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div><h3>Apply for a loan</h3>${S.profile?`<p class="note">An application is only a request. Any approved offer must state the exact amount, flat 10% interest, total repayment and due date before you accept. Interest is repaid with the loan after disbursement; no upfront interest payment is requested. M-Pesa transfers in this workflow are sandbox tests only.</p>${amountRange?`<p class="form-hint">${ageOnDate(S.profile.dateOfBirth)<=25?"Applicants aged 18 to 25 may request KES 10,000 to KES 30,000.":"Applicants over 25 may request KES 30,000 to KES 200,000."}</p>`:`<p class="err" role="alert">You must be at least 18 years old to submit an application.</p>`}<form id="lf" novalidate><label for="la">Amount requested</label><input id="la" type="number" min="${amountRange?.min||1000}" max="${amountRange?.max||200000}" step="500" value="${amountRange?.min||1000}" inputmode="numeric" ${amountRange?"":"disabled"} required><small class="form-hint">${amountRange?`KES ${amountRange.min.toLocaleString("en-KE")} to KES ${amountRange.max.toLocaleString("en-KE")}`:"Complete a valid date of birth first."}</small>
 <label for="ld">Requested period</label><input id="ld" type="number" min="7" max="90" value="30" inputmode="numeric" required><small class="form-hint">7 to 90 days</small>
 <label for="lp">Purpose</label><select id="lp"><option>Business</option><option>School fees</option><option>Emergency</option><option>Rent</option><option>Other</option></select>
@@ -1090,6 +1109,11 @@ function bindLoanForms(){
   });
 }
 
+function applicationSubmitted(){
+  const receipt=S.applicationReceipt;
+  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Application status</span><h1 style="font-size:2rem">Application received</h1><p>${receipt?`We received your request for ${KES(receipt.amount)} over ${receipt.periodDays} days.`:"Your loan application request was received."} This is not an approval or a loan offer.</p><p>If a written offer is made, review its amount, 10% flat interest, total repayment and due date before accepting. No payment is requested before disbursement.</p><a class="btn full" href="#/dash">Return to dashboard</a></div></div>`;
+}
+
 function loanFunded(){
   const offerId=decodeURIComponent(location.hash.slice("#/loan-funded/".length));
   const offer=S.offers.find(item=>item.id===offerId&&item.status==="ACTIVE");
@@ -1102,10 +1126,10 @@ function loanFunded(){
 }
 
 function dashM(){
-  const editProfile=$("#editProfile");
-  if(editProfile)editProfile.onclick=()=>{S.profileEditing=true;go()};
-  const cancelEdit=$("#cancelEdit");
-  if(cancelEdit)cancelEdit.onclick=()=>{S.profileEditing=false;go()};
+  const dobInput=$("#dob");
+  if(dobInput)dobInput.addEventListener("input",()=>{
+    $("#dob-amount-range").textContent=loanRangeMessage(dobInput.value);
+  });
   const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();const dob=$("#dob").value;
     if(!dob)return $("#e1").textContent="Enter your date of birth.";
     const birthDate=new Date(`${dob}T00:00:00.000Z`),today=new Date();
@@ -1115,7 +1139,7 @@ function dashM(){
     const button=pf.querySelector("button");button.disabled=true;button.textContent="Saving profile…";
     const county=$("#co").value;
     api("/profile/me",{method:"PUT",body:JSON.stringify({dateOfBirth:dob,county,monthlyIncomeRange:$("#in").value})})
-      .then(profile=>{S.profile={county:profile.county,income:profile.monthlyIncomeRange,dateOfBirth:dob};S.profileEditing=false;S.dashboardError=null;S.notice="Your profile details have been saved.";go()})
+      .then(profile=>{S.profile={county:profile.county,income:profile.monthlyIncomeRange,dateOfBirth:dob};S.dashboardError=null;S.notice="Your profile details have been saved.";go()})
       .catch(error=>{$("#e1").textContent=error.message;button.disabled=false;button.textContent="Save profile"});
   };
   const lf=$("#lf");if(lf)lf.onsubmit=e=>{e.preventDefault();const a=+$("#la").value,d=+$("#ld").value;
@@ -1125,17 +1149,18 @@ function dashM(){
     if(!Number.isInteger(d)||d<7||d>90)return $("#e2").textContent="Enter a whole period between 7 and 90 days.";
     const button=lf.querySelector("button");button.disabled=true;button.textContent="Submitting…";
     api("/loans/apply",{method:"POST",body:JSON.stringify({amount:a,periodDays:d,purpose:$("#lp").value})})
-      .then(application=>{S.apps.unshift({id:application.id,amt:application.amount,days:application.periodDays,purpose:application.purpose,status:application.status,createdAt:application.createdAt});S.dashboardError=null;applicationSubmittedNotice();go()})
+      .then(application=>{S.apps.unshift({id:application.id,amt:application.amount,days:application.periodDays,purpose:application.purpose,status:application.status,createdAt:application.createdAt});S.applicationReceipt=application;S.dashboardError=null;location.hash="#/application-submitted";go()})
       .catch(error=>{$("#e2").textContent=error.message;button.disabled=false;button.textContent="Submit application"});
   };
   bindLoanForms();
 }
 
 function fundedM(){bindLoanForms()}
-const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM],"/loan-funded":[loanFunded,fundedM]};
+const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM],"/application-submitted":[applicationSubmitted,null],"/loan-funded":[loanFunded,fundedM]};
 function go(){
   const route=location.hash.slice(1)||"/",p=route.startsWith("/loan-funded/")?"/loan-funded":route,r=R[p]||R["/"];
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
+  if(p==="/application-submitted"&&!S.user){location.hash="#/login";return}
   if(p==="/loan-funded"&&!S.user){location.hash="#/login";return}
   if(p==="/assurance"&&!S.user){location.hash="#/signup";return}
   if(S.user&&S.assuranceLoaded&&S.assurance?.status!=="SUBMITTED"&&p!=="/assurance"&&p!=="/otp"){location.hash="#/assurance";return}
@@ -1149,7 +1174,7 @@ function go(){
   if(logoutButton)logoutButton.onclick=async()=>{
     try{await api("/auth/logout",{method:"POST"})}
     catch(error){$("#app").insertAdjacentHTML("afterbegin",`<div class="w"><p class="err" role="alert">${esc(error.message)}</p></div>`);return}
-    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.offers=[];S.assurance=null;S.assuranceLoaded=false;S.dashboardError=null;S.profileEditing=false;S.notice=null;
+    S.user=null;S.verified=false;S.profile=null;S.apps=[];S.offers=[];S.assurance=null;S.assuranceLoaded=false;S.dashboardError=null;S.applicationReceipt=null;S.notice=null;
     location.hash="#/";go();
   };
   if(!(p==="/dash"&&document.activeElement&&document.activeElement.id))window.scrollTo(0,0);

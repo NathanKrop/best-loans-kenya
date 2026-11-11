@@ -1,6 +1,6 @@
 # DeniCash
 
-A Kenyan loan-application app with account registration, email verification, profile capture and loan-request storage. The customer site uses the configured backend; it has no browser-local mock account or application mode. Registration is free. The backend includes a sandbox-only manual offer and M-Pesa workflow; production lending, disbursements and collections are not enabled.
+A Kenyan loan-application app with account registration, email verification, profile capture and loan-request storage. Registration collects date of birth, county and monthly income once; the dashboard displays the saved details and calculates the age-based request range. The customer site uses the configured backend; it has no browser-local mock account or application mode. Registration is free. The backend includes a sandbox-only manual offer and M-Pesa workflow; production lending, disbursements and collections are not enabled.
 
 ## Project structure
 
@@ -23,7 +23,7 @@ Assurance documents are sent to a private Supabase Storage bucket; the database 
 
 The phone number is collected during email verification and stored without phone verification. Run `npm run db:deploy` from `backend/` after configuring the database to apply all migrations.
 
-Loan request limits are age-based: applicants aged 18–25 may request KES 10,000–30,000, while applicants over 25 may request KES 30,000–200,000. These are request limits only; they do not represent eligibility decisions, offers, or approvals. The sandbox workflow calculates 10% flat interest for a written offer and sets the due date to the requested term after confirmed disbursement. Loan amounts must not be assigned randomly; the approved amount must be assessed and included in the specific written offer.
+Loan request limits are age-based: applicants aged 18–25 may request KES 10,000–30,000, while applicants over 25 may request KES 30,000–200,000. These are request limits only; they do not represent eligibility decisions, offers, or approvals. Applications receive a confirmation that makes clear the request is not an approval or offer. The sandbox workflow calculates 10% flat interest for a written offer and sets the due date to the requested term after confirmed disbursement; it does not request advance interest payments. Loan amounts must not be assigned randomly; the approved amount must be assessed and included in the specific written offer.
 
 ## M-Pesa sandbox test flow
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "./db.js";
 import { sendVerificationEmail } from "./lib/email.js";
 import { ConfigurationError, normalizeKenyanPhone } from "./lib/mpesa.js";
+import { ageOn, counties, incomeRanges } from "./lib/profile.js";
 
 const scrypt = promisify(scryptCallback);
 const ACCESS_COOKIE = "blk_access";
@@ -195,6 +196,12 @@ const registerSchema = z.object({
   fullName: z.string().trim().min(3).max(100),
   email: z.string().trim().email().max(254).transform(value => value.toLowerCase()),
   password: z.string().min(1).max(128),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }),
+  county: z.enum(counties),
+  monthlyIncomeRange: z.enum(incomeRanges),
   consent: z.literal(true)
 });
 
@@ -215,13 +222,27 @@ export function createAuthRouter(express: typeof import("express")) {
   router.post("/register", async (request, response, next) => {
     try {
       const input = registerSchema.parse(request.body);
+      const dateOfBirth = new Date(`${input.dateOfBirth}T00:00:00.000Z`);
+      if (ageOn(dateOfBirth) < 18) {
+        response.status(403).json({
+          error: { code: "AGE_REQUIREMENT_NOT_MET", message: "You must be at least 18 years old to create an application account." }
+        });
+        return;
+      }
       const passwordHash = await hashPassword(input.password);
       const user = await prisma.user.create({
         data: {
           fullName: input.fullName,
           email: input.email,
           passwordHash,
-          consentPolicyVersion: process.env.PRIVACY_POLICY_VERSION || "2026-10"
+          consentPolicyVersion: process.env.PRIVACY_POLICY_VERSION || "2026-10",
+          profile: {
+            create: {
+              dateOfBirth,
+              county: input.county,
+              monthlyIncomeRange: input.monthlyIncomeRange
+            }
+          }
         },
         select: { id: true, email: true }
       });

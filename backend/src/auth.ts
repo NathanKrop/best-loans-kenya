@@ -216,6 +216,10 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128)
 });
 
+const phoneSchema = z.object({
+  phone: z.string().min(9).max(16)
+});
+
 export function createAuthRouter(express: typeof import("express")) {
   const router = express.Router();
 
@@ -378,6 +382,21 @@ export function createAuthRouter(express: typeof import("express")) {
   router.post("/logout", (_request, response) => {
     response.clearCookie(ACCESS_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
     response.status(204).end();
+  });
+
+  router.put("/phone", requireUser, async (request: AuthenticatedRequest, response, next) => {
+    try {
+      const input = phoneSchema.parse(request.body);
+      const phone = normalizeKenyanPhone(input.phone);
+      const user = await prisma.user.update({
+        where: { id: request.userId! },
+        data: { phone },
+        select: { phone: true }
+      });
+      response.json({ data: user });
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.get("/me", requireUser, async (request: AuthenticatedRequest, response, next) => {

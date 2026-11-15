@@ -154,6 +154,7 @@ model LoanApplication {
   status      LoanApplicationStatus   @default(PENDING)
   offer       LoanOffer?
   auditLogs   LoanAuditLog[]
+  payments    Payment[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
 
@@ -179,6 +180,8 @@ model Payment {
   id                 String        @id @default(uuid()) @db.Uuid
   userId             String        @db.Uuid
   user               User          @relation(fields: [userId], references: [id])
+  loanApplicationId  String?       @db.Uuid
+  loanApplication    LoanApplication? @relation(fields: [loanApplicationId], references: [id], onDelete: Restrict)
   loanOfferId        String?       @db.Uuid
   loanOffer          LoanOffer?    @relation(fields: [loanOfferId], references: [id], onDelete: Restrict)
   pendingKey         String?       @unique
@@ -197,6 +200,7 @@ model Payment {
   updatedAt          DateTime      @updatedAt
 
   @@index([userId, status])
+  @@index([loanApplicationId, purpose, status])
   @@index([loanOfferId, purpose, status])
   @@index([status, createdAt])
 }

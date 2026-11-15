@@ -16,6 +16,12 @@ const sandboxPaymentSchema = z.object({
   phone: z.string().min(9).max(16).optional()
 });
 
+const applicationFeeSchema = z.object({
+  applicationId: z.string().uuid(),
+  phone: z.string().min(9).max(16),
+  acceptTerms: z.literal(true)
+});
+
 const stkCallbackSchema = z.object({
   Body: z.object({
     stkCallback: z.object({
@@ -28,11 +34,26 @@ export function isMpesaSandboxTestEnabled(env: NodeJS.ProcessEnv = process.env):
   return env.MPESA_ENV === "sandbox" && env.MPESA_SANDBOX_TEST_MODE === "true";
 }
 
+export function isProductionApplicationFeeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.MPESA_ENV === "production" && env.MPESA_APPLICATION_FEE_ENABLED === "true";
+}
+
+export function applicationFeeForAmount(amount: number): number {
+  if (!Number.isSafeInteger(amount) || amount < 1) {
+    throw new RangeError("The requested loan amount must be a positive whole number.");
+  }
+  return Math.round(amount * 0.1);
+}
+
 export function paymentStatusForMpesaResult(resultCode: number): "SUCCESS" | "FAILED" | "CANCELLED" | "TIMEOUT" {
   if (resultCode === 0) return "SUCCESS";
   if (resultCode === 1032) return "CANCELLED";
   if (resultCode === 1037) return "TIMEOUT";
   return "FAILED";
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "P2002";
 }
 
 async function refreshSandboxPaymentStatus(
@@ -100,17 +121,216 @@ function sandboxClient(): MpesaClient {
   return new MpesaClient(config);
 }
 
+function productionClient(): MpesaClient {
+  if (!isProductionApplicationFeeEnabled()) {
+    throw new ConfigurationError("Production application-fee collection is disabled.");
+  }
+  const config = readMpesaConfig();
+  if (config.environment !== "production") {
+    throw new ConfigurationError("Application-fee payments require production M-Pesa configuration.");
+  }
+  const callbackToken = new URL(config.callbackUrl).searchParams.get("token") || undefined;
+  if (!validMpesaCallbackToken(callbackToken)) {
+    throw new ConfigurationError("MPESA_CALLBACK_URL must include the configured callback token.");
+  }
+  return new MpesaClient(config);
+}
+
+async function refreshProductionApplicationFeeStatus(
+  paymentId: string,
+  checkoutRequestId: string,
+  callbackReceived = false
+): Promise<void> {
+  const result = await productionClient().queryStkPush(checkoutRequestId);
+  if (result.CheckoutRequestID !== checkoutRequestId) {
+    throw new MpesaProviderError("Safaricom returned a mismatched M-Pesa transaction.");
+  }
+  if (result.ResultCode === undefined || !/^\d+$/.test(result.ResultCode)) return;
+
+  const resultCode = Number(result.ResultCode);
+  if (!Number.isSafeInteger(resultCode) || resultCode > 2_147_483_647) {
+    throw new MpesaProviderError("Safaricom returned an invalid transaction status.");
+  }
+  await prisma.payment.updateMany({
+    where: { id: paymentId, purpose: "APPLICATION_FEE", status: "PENDING" },
+    data: {
+      status: paymentStatusForMpesaResult(resultCode),
+      resultCode,
+      resultDesc: result.ResultDesc || result.ResponseDescription,
+      pendingKey: null,
+      ...(callbackReceived ? { callbackReceivedAt: new Date() } : {})
+    }
+  });
+}
+
 function sandboxDisabled(response: import("express").Response): void {
   response.status(503).json({
     error: {
       code: "SANDBOX_PAYMENTS_DISABLED",
-      message: "Sandbox test payments are disabled. Production payments are not available."
+      message: "Sandbox test payments are disabled."
     }
   });
 }
 
 export function createPaymentsRouter(express: typeof import("express")) {
   const router = express.Router();
+
+  router.get("/payments/production/application-fee/config", (_request, response) => {
+    const enabled = isProductionApplicationFeeEnabled();
+    if (enabled) productionClient();
+    response.json({ data: { enabled } });
+  });
+
+  router.post("/payments/production/application-fee", requireUser, async (request: AuthenticatedRequest, response, next) => {
+    if (!isProductionApplicationFeeEnabled()) {
+      response.status(503).json({
+        error: {
+          code: "APPLICATION_FEE_COLLECTION_DISABLED",
+          message: "Production application-fee collection is not enabled."
+        }
+      });
+      return;
+    }
+
+    try {
+      const input = applicationFeeSchema.parse(request.body);
+      const client = productionClient();
+      const phone = normalizeKenyanPhone(input.phone);
+      const application = await prisma.loanApplication.findFirst({
+        where: { id: input.applicationId, userId: request.userId! },
+        select: { id: true, amount: true, status: true }
+      });
+      if (!application) {
+        response.status(404).json({
+          error: { code: "APPLICATION_NOT_FOUND", message: "The loan application could not be found." }
+        });
+        return;
+      }
+      if (application.status !== "PENDING") {
+        response.status(409).json({
+          error: { code: "APPLICATION_NOT_PENDING", message: "An application fee cannot be requested for this application." }
+        });
+        return;
+      }
+
+      const existingPayment = await prisma.payment.findFirst({
+        where: {
+          loanApplicationId: application.id,
+          purpose: "APPLICATION_FEE",
+          status: { in: ["PENDING", "SUCCESS"] }
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, amount: true, status: true, checkoutRequestId: true }
+      });
+      if (existingPayment?.status === "SUCCESS") {
+        response.json({
+          data: { paymentId: existingPayment.id, amount: existingPayment.amount, status: existingPayment.status }
+        });
+        return;
+      }
+      if (existingPayment?.status === "PENDING") {
+        response.status(202).json({
+          data: { paymentId: existingPayment.id, amount: existingPayment.amount, status: existingPayment.status }
+        });
+        return;
+      }
+
+      const amount = applicationFeeForAmount(application.amount);
+      const pendingKey = `${application.id}:APPLICATION_FEE`;
+      let payment: { id: string };
+      try {
+        payment = await prisma.payment.create({
+          data: {
+            userId: request.userId!,
+            loanApplicationId: application.id,
+            pendingKey,
+            purpose: "APPLICATION_FEE",
+            amount,
+            phone
+          },
+          select: { id: true }
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        const concurrentPayment = await prisma.payment.findFirst({
+          where: { pendingKey, status: "PENDING" },
+          select: { id: true, amount: true }
+        });
+        if (!concurrentPayment) throw error;
+        response.status(202).json({
+          data: { paymentId: concurrentPayment.id, amount: concurrentPayment.amount, status: "PENDING" }
+        });
+        return;
+      }
+
+      try {
+        const result = await client.initiateStkPush({
+          phone,
+          amount,
+          accountReference: `DC${payment.id.replaceAll("-", "").slice(0, 10)}`,
+          transactionDesc: "App fee"
+        });
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { merchantRequestId: result.MerchantRequestID, checkoutRequestId: result.CheckoutRequestID }
+        });
+        response.status(202).json({
+          data: { paymentId: payment.id, amount, status: "PENDING", customerMessage: result.CustomerMessage }
+        });
+      } catch (error) {
+        if (error instanceof MpesaProviderError) {
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: { status: "FAILED", resultDesc: error.message, pendingKey: null }
+          });
+        }
+        next(error);
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/payments/production/application-fee/:paymentId/status", requireUser, async (request: AuthenticatedRequest, response, next) => {
+    if (!isProductionApplicationFeeEnabled()) {
+      response.status(503).json({
+        error: {
+          code: "APPLICATION_FEE_COLLECTION_DISABLED",
+          message: "Production application-fee collection is not enabled."
+        }
+      });
+      return;
+    }
+    try {
+      const paymentId = z.string().uuid().parse(request.params.paymentId);
+      let payment = await prisma.payment.findFirst({
+        where: { id: paymentId, userId: request.userId!, purpose: "APPLICATION_FEE" },
+        select: { id: true, amount: true, status: true, checkoutRequestId: true }
+      });
+      if (!payment) {
+        response.status(404).json({
+          error: { code: "PAYMENT_NOT_FOUND", message: "The application-fee payment could not be found." }
+        });
+        return;
+      }
+      if (payment.status === "PENDING" && payment.checkoutRequestId) {
+        await refreshProductionApplicationFeeStatus(payment.id, payment.checkoutRequestId);
+        payment = await prisma.payment.findUnique({
+          where: { id: payment.id },
+          select: { id: true, amount: true, status: true, checkoutRequestId: true }
+        });
+        if (!payment) {
+          response.status(404).json({
+            error: { code: "PAYMENT_NOT_FOUND", message: "The application-fee payment could not be found." }
+          });
+          return;
+        }
+      }
+      response.json({ data: { id: payment.id, amount: payment.amount, status: payment.status } });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.post("/payments/sandbox/stk-push", requireUser, async (request: AuthenticatedRequest, response, next) => {
     if (!isMpesaSandboxTestEnabled()) {
@@ -254,7 +474,7 @@ export function createPaymentsRouter(express: typeof import("express")) {
   });
 
   router.post("/payments/mpesa/callback", async (request, response, next) => {
-    if (!isMpesaSandboxTestEnabled()) {
+    if (!isMpesaSandboxTestEnabled() && !isProductionApplicationFeeEnabled()) {
       sandboxDisabled(response);
       return;
     }
@@ -266,15 +486,24 @@ export function createPaymentsRouter(express: typeof import("express")) {
       const input = stkCallbackSchema.parse(request.body);
       const checkoutRequestId = input.Body.stkCallback.CheckoutRequestID;
       const payment = await prisma.payment.findFirst({
-        where: { checkoutRequestId, purpose: { in: ["SANDBOX_TEST", "SANDBOX_REPAYMENT"] } },
-        select: { id: true }
+        where: {
+          checkoutRequestId,
+          purpose: isProductionApplicationFeeEnabled()
+            ? "APPLICATION_FEE"
+            : { in: ["SANDBOX_TEST", "SANDBOX_REPAYMENT"] }
+        },
+        select: { id: true, purpose: true }
       });
       if (!payment) {
         response.json({ ResultCode: 0, ResultDesc: "Accepted" });
         return;
       }
 
-      await refreshSandboxPaymentStatus(payment.id, checkoutRequestId, true);
+      if (payment.purpose === "APPLICATION_FEE") {
+        await refreshProductionApplicationFeeStatus(payment.id, checkoutRequestId, true);
+      } else {
+        await refreshSandboxPaymentStatus(payment.id, checkoutRequestId, true);
+      }
       response.json({ ResultCode: 0, ResultDesc: "Accepted" });
     } catch (error) {
       next(error);

@@ -10,9 +10,11 @@ Do not write Daraja API keys, passwords, or other secrets in this document or se
 
 ## Customer payment
 
-- Upfront/application fee: None; do not collect before disbursement
+- Upfront/application fee: 10% of the requested amount; charged by M-Pesa STK push when the applicant continues after submitting an application
+- Refund policy: Full refund if the application is rejected or withdrawn; handled manually to the original M-Pesa number
+- Approval disclosure: Paying the application fee does not guarantee approval or disbursement
 - Interest: 10% flat total over the full loan term
-- Interest handling: Include in the written offer and scheduled repayment, not as an upfront payment
+- Interest handling: Include in the written offer and scheduled repayment, not as an upfront payment; it is separate from the application fee
 - Repayment schedule: Single due date; loan term and exact due date are undecided
 
 ## Borrower payouts
@@ -27,4 +29,4 @@ Do not write Daraja API keys, passwords, or other secrets in this document or se
 
 ## Readiness
 
-The Till number is recorded, but live collection and payouts remain disabled. The loan term, full repayment dates, owner-admin decision interface and API, written-offer acceptance, and secure M-Pesa payout capability must be implemented and tested before lending. Production also requires the applicable legal/licensing review, live Daraja configuration and operational reconciliation.
+The application-fee STK flow is implemented but remains disabled unless `MPESA_ENV=production`, `MPESA_APPLICATION_FEE_ENABLED=true`, and live Daraja credentials and public HTTPS callback configuration are supplied privately to the backend. For the configured Till, use `MPESA_SHORTCODE=3584917` and `MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline`. Apply the database migration before enabling it. This repository does not provide production loan review, disbursement, automated refunds, customer-support contact details, or transaction reconciliation. Refunds must be processed manually to the original M-Pesa number for rejected or withdrawn applications. Do not enable collection until the refund operation, customer support and applicable legal/licensing review are ready. Production lending and payouts remain disabled.

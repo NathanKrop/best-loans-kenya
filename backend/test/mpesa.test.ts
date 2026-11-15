@@ -9,7 +9,12 @@ import {
   timestampInNairobi,
   validMpesaCallbackToken
 } from "../src/lib/mpesa.js";
-import { isMpesaSandboxTestEnabled, paymentStatusForMpesaResult } from "../src/payments.js";
+import {
+  applicationFeeForAmount,
+  isMpesaSandboxTestEnabled,
+  isProductionApplicationFeeEnabled,
+  paymentStatusForMpesaResult
+} from "../src/payments.js";
 
 const config = {
   environment: "sandbox" as const,
@@ -83,6 +88,24 @@ test("sandbox test payments require both sandbox environment and explicit opt-in
   assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "sandbox" }), false);
   assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "production", MPESA_SANDBOX_TEST_MODE: "true" }), false);
   assert.equal(isMpesaSandboxTestEnabled({ MPESA_ENV: "sandbox", MPESA_SANDBOX_TEST_MODE: "true" }), true);
+});
+
+test("production application-fee payments require production mode and explicit opt-in", () => {
+  assert.equal(isProductionApplicationFeeEnabled({ MPESA_ENV: "production" }), false);
+  assert.equal(isProductionApplicationFeeEnabled({ MPESA_ENV: "sandbox", MPESA_APPLICATION_FEE_ENABLED: "true" }), false);
+  assert.equal(isProductionApplicationFeeEnabled({
+    MPESA_ENV: "production",
+    MPESA_APPLICATION_FEE_ENABLED: "true"
+  }), true);
+});
+
+test("application fee is calculated as ten percent of the requested amount", () => {
+  assert.equal(applicationFeeForAmount(10_000), 1_000);
+  assert.equal(applicationFeeForAmount(10_500), 1_050);
+  assert.equal(applicationFeeForAmount(30_000), 3_000);
+  assert.equal(applicationFeeForAmount(200_000), 20_000);
+  assert.throws(() => applicationFeeForAmount(0), /positive whole number/);
+  assert.throws(() => applicationFeeForAmount(1.5), /positive whole number/);
 });
 
 test("maps verified Daraja result codes to payment states", () => {

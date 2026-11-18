@@ -56,6 +56,20 @@ test("requires HTTPS callback URLs and supported configuration", () => {
   }), /must use HTTPS/);
 });
 
+test("accepts the configured business shortcode environment variable", () => {
+  const config = readMpesaConfig({
+    MPESA_ENV: "production",
+    MPESA_CONSUMER_KEY: "key",
+    MPESA_CONSUMER_SECRET: "secret",
+    MPESA_BUSINESS_SHORT_CODE: "123456",
+    MPESA_PASSKEY: "pass",
+    MPESA_CALLBACK_URL: "https://example.test/callback"
+  });
+
+  assert.equal(config.shortcode, "123456");
+  assert.equal(config.environment, "production");
+});
+
 test("authenticates payment callbacks with the configured shared token", () => {
   const env = { MPESA_CALLBACK_TOKEN: "private-callback-token" };
   assert.equal(validMpesaCallbackToken("private-callback-token", env), true);

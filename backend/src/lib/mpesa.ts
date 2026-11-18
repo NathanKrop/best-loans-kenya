@@ -104,11 +104,12 @@ export function readMpesaConfig(env: NodeJS.ProcessEnv = process.env): MpesaConf
   if (environment !== "sandbox" && environment !== "production") {
     throw new ConfigurationError("MPESA_ENV must be sandbox or production.");
   }
+  const shortcode = env.MPESA_BUSINESS_SHORT_CODE || env.MPESA_SHORTCODE;
 
   const required: Array<[keyof MpesaConfig, string | undefined]> = [
     ["consumerKey", env.MPESA_CONSUMER_KEY],
     ["consumerSecret", env.MPESA_CONSUMER_SECRET],
-    ["shortcode", env.MPESA_SHORTCODE],
+    ["shortcode", shortcode],
     ["passkey", env.MPESA_PASSKEY],
     ["callbackUrl", env.MPESA_CALLBACK_URL]
   ];
@@ -136,7 +137,7 @@ export function readMpesaConfig(env: NodeJS.ProcessEnv = process.env): MpesaConf
     environment,
     consumerKey: env.MPESA_CONSUMER_KEY!,
     consumerSecret: env.MPESA_CONSUMER_SECRET!,
-    shortcode: env.MPESA_SHORTCODE!,
+    shortcode: shortcode!,
     passkey: env.MPESA_PASSKEY!,
     callbackUrl: callback.toString(),
     transactionType

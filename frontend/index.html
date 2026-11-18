@@ -1135,7 +1135,7 @@ async function watchApplicationFee(paymentId){
       }
       if(payment.status!=="PENDING"){
         status.textContent=`Payment ${payment.status.toLowerCase()}. No successful fee payment has been recorded. You can try again.`;
-        button.disabled=false;button.textContent="Continue";return;
+        button.disabled=false;button.textContent="Pay with M-Pesa";return;
       }
     }catch(error){
       status.textContent=error.message;
@@ -1152,8 +1152,8 @@ function applicationPhoneM(){
   const button=form.querySelector("button"),status=$("#application-fee-status");
   api("/payments/production/application-fee/config").then(config=>{
     if(config.enabled){
-      button.disabled=false;button.textContent="Continue";
-      status.textContent="Continuing will send an M-Pesa request for the application fee shown above.";
+      button.disabled=false;button.textContent="Pay with M-Pesa";
+      status.textContent="Selecting Pay with M-Pesa will send a payment prompt to the number you entered.";
       return;
     }
     status.textContent="Production M-Pesa collection is not enabled. No payment has been requested.";
@@ -1170,12 +1170,10 @@ function applicationPhoneM(){
     if(!application?.id){error.textContent="The application could not be identified. Return to your dashboard and try again.";return}
     button.disabled=true;button.textContent="Requesting payment…";error.textContent="";
     try{
-      const updated=await api("/auth/phone",{method:"PUT",body:JSON.stringify({phone})});
-      S.user.phone=updated.phone;
       const payment=await api("/payments/production/application-fee",{
-        method:"POST",body:JSON.stringify({applicationId:application.id,phone:updated.phone,acceptTerms:true})
+        method:"POST",body:JSON.stringify({applicationId:application.id,phone,acceptTerms:true})
       });
-      status.textContent=`An M-Pesa payment request for ${KES(payment.amount)} is pending for ${updated.phone}. Complete it on your phone.`;
+      status.textContent=`An M-Pesa payment request for ${KES(payment.amount)} is pending for ${phone}. Complete it on your phone.`;
       if(payment.status==="SUCCESS"){
         S.notice="Your application fee is confirmed. Your application is awaiting review; this payment is not an approval or a promise of funds.";
         location.hash="#/dash";go();return;
@@ -1183,7 +1181,7 @@ function applicationPhoneM(){
       await watchApplicationFee(payment.paymentId);
     }catch(err){
       error.textContent=err.message;
-      button.disabled=false;button.textContent="Continue";
+      button.disabled=false;button.textContent="Pay with M-Pesa";
     }
   };
 }
